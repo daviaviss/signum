@@ -1,5 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, PhotoImage
+from mvc import ui_constants as UI
+from mvc.views.metas_view import MetasView
+
 
 
 class UserLoginView:
@@ -11,36 +14,36 @@ class UserLoginView:
     """
 
     # ---------------- WINDOW ----------------
-    WIDTH = 1024
-    HEIGHT = 720
-    BG_COLOR = "#f9faf2"  # fundo da janela
+    WIDTH  = UI.WIDTH
+    HEIGHT = UI.HEIGHT
+    BG_COLOR = UI.BG_COLOR  # fundo da janela
 
     # ---------------- FRAME / BOX ----------------
-    BOX_BG = "#edede6"  # fundo das caixas
-    BOX_PAD_X = 40
-    BOX_PAD_Y = 30
-    BOX_RELIEF = "raised"
-    BOX_BORDER = 2
+    BOX_BG = UI.BOX_BG
+    BOX_PAD_X = UI.BOX_PAD_X
+    BOX_PAD_Y = UI.BOX_PAD_Y
+    BOX_RELIEF = UI.BOX_RELIEF
+    BOX_BORDER = UI.BOX_BORDER
 
     # ---------------- FONTS ----------------
-    FONT_TITLE = ("Inter", 24, "bold")
-    FONT_LABEL = ("Inter", 14)
-    FONT_ENTRY = ("Inter", 12)
-    FONT_BUTTON = ("Inter", 12, "bold")
+    FONT_TITLE = UI.FONT_TITLE
+    FONT_LABEL = UI.FONT_LABEL
+    FONT_ENTRY = UI.FONT_ENTRY
+    FONT_BUTTON = UI.FONT_BUTTON
 
-    PAD_Y = 10
+    PAD_Y = UI.PAD_Y
 
     # ---------------- BUTTON COLORS ----------------
-    BTN_BG = "#8cb0e5"
-    BTN_FG = "#2e3047"
-    BTN_ACTIVE_BG = "#c1d7ff"
-    BTN_ACTIVE_FG = "#2e3047"
+    BTN_BG = UI.BTN_BG
+    BTN_FG = UI.BTN_FG
+    BTN_ACTIVE_BG = UI.BTN_ACTIVE_BG
+    BTN_ACTIVE_FG = UI.BTN_ACTIVE_FG
 
     # ---------------- ENTRY COLORS ----------------
-    ENTRY_BG = "#a5b3b6"
-    ENTRY_FG = "#2e3047"
-    ENTRY_PLACEHOLDER_FG = "#ffffff"
-    ENTRY_CURSOR_COLOR = "#2e3047"
+    ENTRY_BG = UI.ENTRY_BG
+    ENTRY_FG = UI.ENTRY_FG
+    ENTRY_PLACEHOLDER_FG = UI.ENTRY_PLACEHOLDER_FG
+    ENTRY_CURSOR_COLOR = UI.ENTRY_CURSOR_COLOR
 
     def __init__(self, root):
         self.root = root
@@ -173,6 +176,44 @@ class UserLoginView:
             command=self.show_register_screen
         )
         self.switch_to_register_button.pack(pady=self.PAD_Y)
+    
+    # ---------------- NAVBAR COMUM ----------------
+    def _render_navbar(self, parent, active: str):
+        """Desenha o navbar no frame 'parent' e pinta de azul o item ativo (Assinaturas, Contratos, Metas)."""
+        header_height = 60
+        header = tk.Frame(parent, bg=self.BOX_BG, height=header_height)
+        header.pack(fill="x", side="top")
+        header.pack_propagate(False)
+
+        # Ícones
+        self.home_img = tk.PhotoImage(file="static/home.png")
+        self.profile_img = tk.PhotoImage(file="static/profile.png")
+
+        # Ícone de Home (esquerda)
+        home_btn = tk.Label(header, image=self.home_img, bg=self.BOX_BG, cursor="hand2")
+        home_btn.pack(side="left", padx=10)
+        home_btn.bind("<Button-1>", lambda e: self.show_home_screen())
+
+        # Links centrais
+        center = tk.Frame(header, bg=self.BOX_BG)
+        center.pack(side="left", expand=True)
+
+        def link(text, cmd):
+            fg = "#1a56db" if text.lower() == active.lower() else self.BTN_FG
+            lbl = tk.Label(center, text=text, font=self.FONT_BUTTON, bg=self.BOX_BG, fg=fg, cursor="hand2")
+            lbl.pack(side="left", padx=15)
+            lbl.bind("<Button-1>", lambda e: cmd())
+            return lbl
+
+        link("Assinaturas", lambda: self.show_message("Assinaturas", "Você clicou em Assinaturas"))
+        link("Contratos", lambda: self.show_message("Contratos", "Você clicou em Contratos"))
+        link("Metas", self.show_metas_screen)
+
+        # Ícone de perfil (direita)
+        profile_btn = tk.Label(header, image=self.profile_img, bg=self.BOX_BG, cursor="hand2")
+        profile_btn.pack(side="right", padx=10)
+        profile_btn.bind("<Button-1>", lambda e: self.show_message("Perfil", "Você clicou no Perfil"))
+
 
     # ---------------- HOME SCREEN ----------------
     def _create_home_screen(self):
@@ -182,38 +223,7 @@ class UserLoginView:
         self.home_frame.pack(fill="both", expand=True)
 
         # ---------------- HEADER ----------------
-        header_height = 60
-        header = tk.Frame(self.home_frame, bg=self.BTN_BG, height=header_height)
-        header.pack(fill="x", side="top")
-        header.pack_propagate(False)
-
-        # Carregar imagens
-        self.home_img = tk.PhotoImage(file="static/home.png")
-        self.profile_img = tk.PhotoImage(file="static/profile.png")
-
-        # Home image à esquerda
-        home_btn = tk.Label(header, image=self.home_img, bg=self.BTN_BG, cursor="hand2")
-        home_btn.pack(side="left", padx=10)
-        home_btn.bind("<Button-1>", lambda e: self.show_message("Home", "Você clicou no Home"))
-
-        # Links centrais (text labels clicáveis)
-        center_frame = tk.Frame(header, bg=self.BTN_BG)
-        center_frame.pack(side="left", expand=True)
-
-        def create_link(parent, text, command):
-            lbl = tk.Label(parent, text=text, font=self.FONT_BUTTON, bg=self.BTN_BG, fg=self.BTN_FG, cursor="hand2")
-            lbl.pack(side="left", padx=15)
-            lbl.bind("<Button-1>", lambda e: command())
-            return lbl
-
-        assinaturas_lbl = create_link(center_frame, "Assinaturas", lambda: self.show_message("Assinaturas", "Você clicou em Assinaturas"))
-        contratos_lbl = create_link(center_frame, "Contratos", lambda: self.show_message("Contratos", "Você clicou em Contratos"))
-        metas_lbl = create_link(center_frame, "Metas", lambda: self.show_message("Metas", "Você clicou em Metas"))
-
-        # Perfil image à direita
-        profile_btn = tk.Label(header, image=self.profile_img, bg=self.BTN_BG, cursor="hand2")
-        profile_btn.pack(side="right", padx=10)
-        profile_btn.bind("<Button-1>", lambda e: self.show_message("Perfil", "Você clicou no Perfil"))
+        self._render_navbar(self.home_frame, active="")
 
         # ---------------- CONTEÚDO ----------------
         content_frame = tk.Frame(self.home_frame, bg=self.BG_COLOR)
@@ -230,16 +240,39 @@ class UserLoginView:
         # Botões verticais ocupando todo o espaço do left_frame
         btn_names = ["Assinaturas", "Contratos", "Metas"]
         for name in btn_names:
+            cmd = self.show_metas_screen if name == "Metas" else \
+                  (lambda n=name: self.show_message(n, f"Você clicou em {n}"))
+
             btn = tk.Button(
                 left_frame, text=name, font=("Inter", 18, "bold"),
                 bg=self.BTN_BG, fg=self.BTN_FG,
                 activebackground=self.BTN_ACTIVE_BG,
                 activeforeground=self.BTN_ACTIVE_FG,
                 relief="flat", borderwidth=0,
-                command=lambda n=name: self.show_message(n, f"Você clicou em {n}")
+                command=cmd
             )
             btn.pack(fill="both", expand=True, pady=25, padx=5)  # fill vertical e expand para ocupar espaço
 
+
+
+    # ---------------- METAS SCREEN ----------------
+    def show_metas_screen(self):
+        """Mostra a tela Metas: navbar comum (Metas ativo) + conteúdo MetasView."""
+        # Limpa e exibe o frame principal
+        for w in self.home_frame.winfo_children():
+            w.destroy()
+        self.home_frame.pack(fill="both", expand=True)
+
+        # Navbar com 'Metas' ativo
+        self._render_navbar(self.home_frame, active="Metas")
+
+        # Área de conteúdo
+        content = tk.Frame(self.home_frame, bg=self.BG_COLOR)
+        content.pack(fill="both", expand=True)
+
+        # Instancia o conteúdo da tela Metas (arquivo separado)
+        # Se o controller de usuário tiver sido setado no main, ele será usado aqui
+        self.metas_view = MetasView(content, getattr(self, "usuario_controller", None))
     # ---------------- SCREEN SWITCHING ----------------
     def show_register_screen(self):
         self._hide_all_frames()
@@ -252,6 +285,7 @@ class UserLoginView:
     def show_home_screen(self):
         self._hide_all_frames()
         self.home_frame.pack(fill="both", expand=True)
+        self._create_home_screen()
 
     def _hide_all_frames(self):
         self.register_frame.pack_forget()

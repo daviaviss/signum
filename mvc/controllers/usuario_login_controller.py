@@ -37,7 +37,15 @@ class UserLoginController:
 
         success = self.model.login_user(email, password)
         if success:
-            self.view.show_message("Welcome", f"Logged in as {email}")
-            self.view.show_home_screen()  # <- switch to home screen
+            # Vincula o usuário ao controller usado pela tela Metas
+            uc = getattr(self.view, "usuario_controller", None)
+            if uc is not None:
+                usuario = uc.carregar_por_email(email)  # carrega do DAO com limites
+                if usuario is None:
+                    self.view.show_error("Erro", "Usuário não encontrado no banco após login.")
+                    return
+
+            # Agora o uc.usuario tem limite_assinaturas/limite_contratos carregados
+            self.view.show_home_screen()
         else:
             self.view.show_error("Error", "Invalid email or password")
