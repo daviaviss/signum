@@ -1,0 +1,36 @@
+# === Python básico ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+
+# === Ambiente virtual ===
+.venv/
+venv/
+env/
+
+# === Banco de dados local ===
+*.sqlite
+*.db
+
+# === Configurações temporárias / IDE ===
+.vscode/
+.idea/
+*.log
+
+# === Arquivos temporários ===
+.DS_Store
+Thumbs.db
+*.tmp
+
+# === Cache e build ===
+build/
+dist/
+*.spec
+
+# === Arquivos do Tkinter ou testes ===
+__pycache__/
+*.bak
