@@ -7,6 +7,7 @@ BG_COLOR = "#f9faf2"
 
 # ---------------- FRAME / BOX ----------------
 BOX_DESTAQUE_BG = "#a5b3b6"
+BOX_CARD_BG = "#d9d9d9"
 BOX_BG = "#e2e3de"
 BOX_PAD_X = 40
 BOX_PAD_Y = 30

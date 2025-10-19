@@ -68,18 +68,18 @@ class MetasView:
         """Monta a interface dos dois cards principais (Assinaturas / Contratos)."""
 
         # ==== CARD ASSINATURAS ====
-        frame_ass = tk.Frame(self.frame, bg="#d9d9d9", bd=2,
+        frame_ass = tk.Frame(self.frame, bg=UI.BOX_CARD_BG, bd=2,
                              relief="groove", padx=20, pady=20)
         frame_ass.pack(side="left", expand=True, padx=20)
 
         tk.Label(frame_ass, text="Assinaturas", font=("Arial", 12, "bold"),
-                 bg="#d9d9d9").pack(pady=(0, 12))
+                 bg=UI.BOX_CARD_BG).pack(pady=(0, 12))
 
         # Círculo reduzido (sem Pillow)
         self.circle_ass = PhotoImage(file="static/circle.png").subsample(
             self.CIRCLE_SUBSAMPLE, self.CIRCLE_SUBSAMPLE
         )
-        circle_label_ass = tk.Label(frame_ass, image=self.circle_ass, bg="#d9d9d9")
+        circle_label_ass = tk.Label(frame_ass, image=self.circle_ass, bg=UI.BOX_CARD_BG)
         circle_label_ass.pack()
 
         # Texto central dentro do círculo
@@ -88,7 +88,7 @@ class MetasView:
             frame_ass,
             text=self._format_display(val_ass),
             font=("Arial", 14, "bold"),
-            bg="#d9d9d9"
+            bg=UI.BOX_CARD_BG
         )
         self.label_ass.place(in_=circle_label_ass, relx=0.5, rely=0.5, anchor="center")
 
@@ -122,17 +122,17 @@ class MetasView:
         btn_ass.pack()
 
         # ==== CARD CONTRATOS ====
-        frame_con = tk.Frame(self.frame, bg="#d9d9d9", bd=2,
+        frame_con = tk.Frame(self.frame, bg=UI.BOX_CARD_BG, bd=2,
                              relief="groove", padx=20, pady=20)
         frame_con.pack(side="right", expand=True, padx=20)
 
         tk.Label(frame_con, text="Contratos", font=("Arial", 12, "bold"),
-                 bg="#d9d9d9").pack(pady=(0, 12))
+                 bg=UI.BOX_CARD_BG).pack(pady=(0, 12))
 
         self.circle_con = PhotoImage(file="static/circle.png").subsample(
             self.CIRCLE_SUBSAMPLE, self.CIRCLE_SUBSAMPLE
         )
-        circle_label_con = tk.Label(frame_con, image=self.circle_con, bg="#d9d9d9")
+        circle_label_con = tk.Label(frame_con, image=self.circle_con, bg=UI.BOX_CARD_BG)
         circle_label_con.pack()
 
         val_con = self._valor_inicial("contratos")
@@ -140,7 +140,7 @@ class MetasView:
             frame_con,
             text=self._format_display(val_con),
             font=("Arial", 14, "bold"),
-            bg="#d9d9d9"
+            bg=UI.BOX_CARD_BG
         )
         self.label_con.place(in_=circle_label_con, relx=0.5, rely=0.5, anchor="center")
 

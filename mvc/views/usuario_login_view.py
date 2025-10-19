@@ -252,6 +252,92 @@ class UserLoginView:
                 command=cmd
             )
             btn.pack(fill="both", expand=True, pady=25, padx=5)  # fill vertical e expand para ocupar espaço
+        # ----- PRÉVIA DAS METAS NA HOME (sem inputs/botões) -----
+        # pega os valores atuais do controller, se houver usuário vinculado
+        uc = getattr(self, "usuario_controller", None)
+        if uc and getattr(uc, "usuario", None):
+            val_ass = float(uc.get_limite_assinaturas())
+            val_con = float(uc.get_limite_contratos())
+        else:
+            val_ass = 0.0
+            val_con = 0.0
+
+        # container que expande e mantém o row centralizado
+        cards_container = tk.Frame(right_frame, bg=self.BG_COLOR)
+        cards_container.pack(fill="both", expand=True)
+        
+        
+        # Centraliza HORIZONTAL e faz espaçadores VERTICAIS iguais
+        cards_container.grid_columnconfigure(0, weight=1)
+        cards_container.grid_columnconfigure(1, weight=0)
+        cards_container.grid_columnconfigure(2, weight=1)
+
+        cards_container.grid_rowconfigure(0, weight=1)  # espaçador superior
+        cards_container.grid_rowconfigure(2, weight=1)  # espaçador inferior
+
+        mini_row = tk.Frame(cards_container, bg=self.BG_COLOR)
+        mini_row.grid(row=1, column=1)  # linha do meio → espaços iguais em cima/baixo
+
+
+        self._home_meta_card(mini_row, "Assinaturas", val_ass)
+        self._home_meta_card(mini_row, "Contratos",   val_con)
+
+    # --------- FORMATADOR PARA MOSTRAR metas NA HOME (abreviado) ---------
+    def _format_metas_display(self, valor: float) -> str:
+        sign = "-" if valor < 0 else ""
+        v = abs(float(valor))
+        if v >= 1_000_000:
+            n = v / 1_000_000
+            num = f"{n:.1f}" if n % 1 else f"{int(n)}"
+            num = num.replace(".", ",")
+            return f"{sign}R${num}M"
+        if v >= 10_000:
+            n = v / 1_000
+            num = f"{n:.1f}" if n % 1 else f"{int(n)}"
+            num = num.replace(".", ",")
+            return f"{sign}R${num}mil"
+        # BRL normal para menores de 10k
+        s = f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{sign}R${s}"
+
+    def _home_meta_card(self, parent, titulo: str, valor: float):
+        box_bg = getattr(UI, "BOX_CARD_BG", "#d9d9d9")
+
+        # tamanho do card
+        CARD_W, CARD_H = 350, 290
+        card = tk.Frame(parent, bg=box_bg, bd=2, relief="groove",
+                        width=CARD_W, height=CARD_H)
+        card.pack(side="top", pady=6)
+        card.pack_propagate(False)
+
+        tk.Label(card, text=titulo, font=("Arial", 12, "bold"), bg=box_bg)\
+        .pack(pady=(6, 6))
+
+        # área central com grid para espaço igual em cima/baixo
+        center = tk.Frame(card, bg=box_bg)
+        center.pack(fill="both", expand=True)
+
+        center.grid_rowconfigure(0, weight=1)
+        center.grid_rowconfigure(2, weight=1)
+        center.grid_columnconfigure(0, weight=1)
+
+        # círculo
+        circle = tk.PhotoImage(file="static/circle.png").zoom(2, 2).subsample(5, 5)
+        if not hasattr(self, "_home_imgs"):
+            self._home_imgs = []
+        self._home_imgs.append(circle)  # evita GC
+
+        circle_lbl = tk.Label(center, image=circle, bg=box_bg, bd=0, highlightthickness=0)
+        circle_lbl.grid(row=1, column=0)
+
+        # valor centralizado no círculo
+        val_lbl = tk.Label(center,
+                        text=self._format_metas_display(valor),
+                        font=("Arial", 12, "bold"),
+                        bg=box_bg)
+        val_lbl.place(in_=circle_lbl, relx=0.5, rely=0.5, anchor="center")
+
+
 
 
 
