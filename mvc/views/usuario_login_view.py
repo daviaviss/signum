@@ -48,7 +48,7 @@ class UserLoginView:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("User System (MVC)")
+        self.root.title("Signum")
         self.root.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.root.resizable(False, False)
         self.root.configure(bg=self.BG_COLOR)

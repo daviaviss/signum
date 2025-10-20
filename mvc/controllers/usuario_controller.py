@@ -94,8 +94,8 @@ class UsuarioController:
         self.usuario.nome = new_name
         self.usuario.email = new_email
         if new_password:
-            self.usuario.senha = new_password
-            self.usuario.senha_hash = hashlib.sha256(new_password.encode()).hexdigest()
+            # Usa o método correto do modelo para gerar o hash da senha
+            self.usuario.senha_hash = self.usuario._hash_password(new_password)
 
         # Atualiza no banco
         self.dao.update_user_profile(
