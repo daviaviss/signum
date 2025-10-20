@@ -2,6 +2,7 @@
 from typing import Optional
 from dao import UserDAO
 from mvc.models.usuario_model import Usuario
+import hashlib
 
 
 class UsuarioController:
@@ -78,3 +79,28 @@ class UsuarioController:
     def _garante_usuario(self) -> None:
         if not self.usuario:
             raise RuntimeError("Nenhum usuário vinculado ao UsuarioController.")
+
+    def update_profile(self, new_name: str, new_email: str, new_password: str = None):
+        if not self.usuario:
+            raise Exception("Nenhum usuário logado!")
+
+        # Verifica se o email já existe (se foi alterado)
+        if new_email != self.usuario.email:
+            existing = self.dao.get_user_by_email(new_email)
+            if existing:
+                raise Exception("Email já cadastrado!")
+
+        # Atualiza o objeto usuário
+        self.usuario.nome = new_name
+        self.usuario.email = new_email
+        if new_password:
+            self.usuario.senha = new_password
+            self.usuario.senha_hash = hashlib.sha256(new_password.encode()).hexdigest()
+
+        # Atualiza no banco
+        self.dao.update_user_profile(
+            self.usuario.id,
+            self.usuario.nome,
+            self.usuario.email,
+            self.usuario.senha_hash
+        )

@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, PhotoImage
 from mvc import ui_constants as UI
 from mvc.views.metas_view import MetasView
+from mvc.views.perfil_view import PerfilView
 
 
 
@@ -212,7 +213,7 @@ class UserLoginView:
         # Ícone de perfil (direita)
         profile_btn = tk.Label(header, image=self.profile_img, bg=self.BOX_BG, cursor="hand2")
         profile_btn.pack(side="right", padx=10)
-        profile_btn.bind("<Button-1>", lambda e: self.show_message("Perfil", "Você clicou no Perfil"))
+        profile_btn.bind("<Button-1>", lambda e: self.show_profile_screen())
 
 
     # ---------------- HOME SCREEN ----------------
@@ -359,6 +360,7 @@ class UserLoginView:
         # Instancia o conteúdo da tela Metas (arquivo separado)
         # Se o controller de usuário tiver sido setado no main, ele será usado aqui
         self.metas_view = MetasView(content, getattr(self, "usuario_controller", None))
+    
     # ---------------- SCREEN SWITCHING ----------------
     def show_register_screen(self):
         self._hide_all_frames()
@@ -372,6 +374,23 @@ class UserLoginView:
         self._hide_all_frames()
         self.home_frame.pack(fill="both", expand=True)
         self._create_home_screen()
+
+    def show_profile_screen(self):
+        """Mostra a tela de perfil do usuário."""
+        # Limpa e exibe o frame principal
+        for w in self.home_frame.winfo_children():
+            w.destroy()
+        self.home_frame.pack(fill="both", expand=True)
+
+        # Navbar com nenhum item ativo
+        self._render_navbar(self.home_frame, active="")
+
+        # Área de conteúdo
+        content = tk.Frame(self.home_frame, bg=self.BG_COLOR)
+        content.pack(fill="both", expand=True)
+
+        # Instancia a view de perfil
+        self.perfil_view = PerfilView(content, self.usuario_controller)
 
     def _hide_all_frames(self):
         self.register_frame.pack_forget()
