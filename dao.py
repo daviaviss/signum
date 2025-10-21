@@ -101,3 +101,15 @@ class UserDAO:
             (float(limite_assinaturas), float(limite_contratos), user_id),
         )
         self.conn.commit()
+
+    # ---------------- UPDATE PROFILE ----------------
+    def update_user_profile(self, user_id: int, nome: str, email: str, senha_hash: str) -> None:
+        self.conn.execute(
+            """
+            UPDATE users
+               SET nome = ?, email = ?, senha_hash = ?
+             WHERE id = ?
+            """,
+            (nome, email, senha_hash, user_id)
+        )
+        self.conn.commit()

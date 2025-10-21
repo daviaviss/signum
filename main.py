@@ -14,6 +14,7 @@ if __name__ == "__main__":
     view = UserLoginView(root)
     controller = UserLoginController(model, view)
     
-    usuario_controller = UsuarioController()
+    # passa o model para o controller de usuário para que ele saiba quem está logado
+    usuario_controller = UsuarioController(model)
     view.usuario_controller = usuario_controller  # passa o controller para a view
     root.mainloop()

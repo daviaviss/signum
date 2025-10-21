@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import messagebox, PhotoImage
+from tkinter import messagebox
 from mvc import ui_constants as UI
 from mvc.views.metas_view import MetasView
+from mvc.views.perfil_view import PerfilView
+from mvc.views.navbar_view import NavbarView
 
 
 
@@ -47,7 +49,7 @@ class UserLoginView:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("User System (MVC)")
+        self.root.title("Signum")
         self.root.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.root.resizable(False, False)
         self.root.configure(bg=self.BG_COLOR)
@@ -180,39 +182,17 @@ class UserLoginView:
     # ---------------- NAVBAR COMUM ----------------
     def _render_navbar(self, parent, active: str):
         """Desenha o navbar no frame 'parent' e pinta de azul o item ativo (Assinaturas, Contratos, Metas)."""
-        header_height = 60
-        header = tk.Frame(parent, bg=self.BOX_BG, height=header_height)
-        header.pack(fill="x", side="top")
-        header.pack_propagate(False)
-
-        # Ícones
-        self.home_img = tk.PhotoImage(file="static/home.png")
-        self.profile_img = tk.PhotoImage(file="static/profile.png")
-
-        # Ícone de Home (esquerda)
-        home_btn = tk.Label(header, image=self.home_img, bg=self.BOX_BG, cursor="hand2")
-        home_btn.pack(side="left", padx=10)
-        home_btn.bind("<Button-1>", lambda e: self.show_home_screen())
-
-        # Links centrais
-        center = tk.Frame(header, bg=self.BOX_BG)
-        center.pack(side="left", expand=True)
-
-        def link(text, cmd):
-            fg = "#1a56db" if text.lower() == active.lower() else self.BTN_FG
-            lbl = tk.Label(center, text=text, font=self.FONT_BUTTON, bg=self.BOX_BG, fg=fg, cursor="hand2")
-            lbl.pack(side="left", padx=15)
-            lbl.bind("<Button-1>", lambda e: cmd())
-            return lbl
-
-        link("Assinaturas", lambda: self.show_message("Assinaturas", "Você clicou em Assinaturas"))
-        link("Contratos", lambda: self.show_message("Contratos", "Você clicou em Contratos"))
-        link("Metas", self.show_metas_screen)
-
-        # Ícone de perfil (direita)
-        profile_btn = tk.Label(header, image=self.profile_img, bg=self.BOX_BG, cursor="hand2")
-        profile_btn.pack(side="right", padx=10)
-        profile_btn.bind("<Button-1>", lambda e: self.show_message("Perfil", "Você clicou no Perfil"))
+        # Dicionário de callbacks para a navbar
+        callbacks = {
+            "home": self.show_home_screen,
+            "assinaturas": lambda: self.show_message("Assinaturas", "Você clicou em Assinaturas"),
+            "contratos": lambda: self.show_message("Contratos", "Você clicou em Contratos"),
+            "metas": self.show_metas_screen,
+            "profile": self.show_profile_screen
+        }
+        
+        # Cria a navbar usando o componente NavbarView
+        self.navbar = NavbarView(parent, active=active, callback_dict=callbacks)
 
 
     # ---------------- HOME SCREEN ----------------
@@ -359,6 +339,7 @@ class UserLoginView:
         # Instancia o conteúdo da tela Metas (arquivo separado)
         # Se o controller de usuário tiver sido setado no main, ele será usado aqui
         self.metas_view = MetasView(content, getattr(self, "usuario_controller", None))
+    
     # ---------------- SCREEN SWITCHING ----------------
     def show_register_screen(self):
         self._hide_all_frames()
@@ -372,6 +353,23 @@ class UserLoginView:
         self._hide_all_frames()
         self.home_frame.pack(fill="both", expand=True)
         self._create_home_screen()
+
+    def show_profile_screen(self):
+        """Mostra a tela de perfil do usuário."""
+        # Limpa e exibe o frame principal
+        for w in self.home_frame.winfo_children():
+            w.destroy()
+        self.home_frame.pack(fill="both", expand=True)
+
+        # Navbar com nenhum item ativo
+        self._render_navbar(self.home_frame, active="")
+
+        # Área de conteúdo
+        content = tk.Frame(self.home_frame, bg=self.BG_COLOR)
+        content.pack(fill="both", expand=True)
+
+        # Instancia a view de perfil
+        self.perfil_view = PerfilView(content, self.usuario_controller)
 
     def _hide_all_frames(self):
         self.register_frame.pack_forget()
