@@ -1,6 +1,6 @@
 # dao.py
 import sqlite3
-from typing import Optional
+from typing import Optional, List
 from mvc.models.usuario_model import Usuario
 
 class UserDAO:
@@ -111,5 +111,159 @@ class UserDAO:
              WHERE id = ?
             """,
             (nome, email, senha_hash, user_id)
+        )
+        self.conn.commit()
+
+class AssinaturasDAO:
+    """DAO para gerenciar assinaturas no banco de dados."""
+    
+    def __init__(self, db_file="database.sqlite"):
+        self.conn = sqlite3.connect(db_file)
+        self._create_table()
+    
+    def _create_table(self):
+        query = """
+        CREATE TABLE IF NOT EXISTS assinaturas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            data_vencimento TEXT NOT NULL,
+            valor REAL NOT NULL,
+            periodicidade TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            forma_pagamento TEXT NOT NULL,
+            usuario_compartilhado TEXT,
+            login TEXT,
+            senha TEXT,
+            favorito INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        self.conn.execute(query)
+        self.conn.commit()
+        
+        # Ensure favorito column exists in existing databases
+        self._ensure_favorito_column()
+    
+    def _ensure_favorito_column(self):
+        """Adiciona coluna favorito se não existir."""
+        cur = self.conn.execute("PRAGMA table_info(assinaturas)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "favorito" not in cols:
+            self.conn.execute(
+                "ALTER TABLE assinaturas ADD COLUMN favorito INTEGER DEFAULT 0"
+            )
+            self.conn.commit()
+    
+    def add_assinatura(self, assinatura):
+        """Adiciona uma nova assinatura ao banco."""
+        from mvc.models.assinaturas_model import Assinatura
+        query = """
+            INSERT INTO assinaturas 
+            (user_id, nome, data_vencimento, valor, periodicidade, tag, 
+             forma_pagamento, usuario_compartilhado, login, senha, favorito)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.execute(
+            query,
+            (
+                assinatura.user_id,
+                assinatura.nome,
+                assinatura.data_vencimento,
+                assinatura.valor,
+                assinatura.periodicidade,
+                assinatura.tag,
+                assinatura.forma_pagamento,
+                assinatura.usuario_compartilhado,
+                assinatura.login,
+                assinatura.senha,
+                assinatura.favorito
+            )
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_assinaturas_by_user(self, user_id: int) -> List:
+        """Retorna todas as assinaturas de um usuário, favoritas primeiro."""
+        from mvc.models.assinaturas_model import Assinatura
+        cursor = self.conn.execute(
+            """
+            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, 
+                   tag, forma_pagamento, usuario_compartilhado, login, senha, favorito
+            FROM assinaturas 
+            WHERE user_id = ?
+            ORDER BY favorito DESC, data_vencimento
+            """,
+            (user_id,)
+        )
+        
+        assinaturas = []
+        for row in cursor.fetchall():
+            assinatura = Assinatura(
+                nome=row[2],
+                data_vencimento=row[3],
+                valor=row[4],
+                periodicidade=row[5],
+                tag=row[6],
+                forma_pagamento=row[7],
+                usuario_compartilhado=row[8],
+                login=row[9],
+                senha=row[10],
+                favorito=row[11],
+                assinatura_id=row[0],
+                user_id=row[1]
+            )
+            assinaturas.append(assinatura)
+        
+        return assinaturas
+    
+    def toggle_favorito(self, assinatura_id: int):
+        """Alterna o status de favorito."""
+        # Get current status
+        cursor = self.conn.execute(
+            "SELECT favorito FROM assinaturas WHERE id = ?",
+            (assinatura_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            new_status = 0 if row[0] == 1 else 1
+            self.conn.execute(
+                "UPDATE assinaturas SET favorito = ? WHERE id = ?",
+                (new_status, assinatura_id)
+            )
+            self.conn.commit()
+    
+    def delete_assinatura(self, assinatura_id: int):
+        """Remove uma assinatura do banco."""
+        self.conn.execute(
+            "DELETE FROM assinaturas WHERE id = ?",
+            (assinatura_id,)
+        )
+        self.conn.commit()
+    
+    def update_assinatura(self, assinatura):
+        """Atualiza uma assinatura existente."""
+        query = """
+            UPDATE assinaturas
+            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?,
+                tag = ?, forma_pagamento = ?, usuario_compartilhado = ?,
+                login = ?, senha = ?, favorito = ?
+            WHERE id = ?
+        """
+        self.conn.execute(
+            query,
+            (
+                assinatura.nome,
+                assinatura.data_vencimento,
+                assinatura.valor,
+                assinatura.periodicidade,
+                assinatura.tag,
+                assinatura.forma_pagamento,
+                assinatura.usuario_compartilhado,
+                assinatura.login,
+                assinatura.senha,
+                assinatura.favorito,
+                assinatura.id
+            )
         )
         self.conn.commit()

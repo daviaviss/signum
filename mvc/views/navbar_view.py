@@ -40,7 +40,6 @@ class NavbarView:
         self.header.pack(fill="x", side="top")
         self.header.pack_propagate(False)
 
-        # Carrega ícones
         self.home_img = tk.PhotoImage(file="static/home.png")
         self.profile_img = tk.PhotoImage(file="static/profile.png")
 
