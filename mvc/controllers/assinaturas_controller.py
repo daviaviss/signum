@@ -69,6 +69,41 @@ class AssinaturasController:
             self.model.toggle_favorito(assinatura_id, self.user_id)
             self._carregar_assinaturas()
     
+    def editar(
+        self,
+        assinatura_id: int,
+        nome: str,
+        data_vencimento: str,
+        valor: float,
+        periodicidade: str,
+        tag: str,
+        forma_pagamento: str,
+        usuario_compartilhado: str = "",
+        login: str = "",
+        senha: str = "",
+        favorito: int = 0
+    ):
+        """Edita uma assinatura existente."""
+        if not self.user_id:
+            return False
+        
+        self.model.editar_assinatura(
+            assinatura_id=assinatura_id,
+            user_id=self.user_id,
+            nome=nome,
+            data_vencimento=data_vencimento,
+            valor=valor,
+            periodicidade=periodicidade,
+            tag=tag,
+            forma_pagamento=forma_pagamento,
+            usuario_compartilhado=usuario_compartilhado,
+            login=login,
+            senha=senha,
+            favorito=favorito
+        )
+        self._carregar_assinaturas()
+        return True
+    
     def get_tags_disponiveis(self):
         """Retorna lista de tags disponíveis."""
         return AssinaturasModel.TAGS_DISPONIVEIS

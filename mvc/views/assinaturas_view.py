@@ -410,9 +410,24 @@ class AssinaturasView:
                 anchor="w"
             ).pack(side="left", fill="x", expand=True)
         
-        # Botão fechar
+        # Botões
+        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        btn_frame.pack(pady=(30, 0), fill="x")
+        
         tk.Button(
-            content_frame,
+            btn_frame,
+            text="Editar",
+            font=UI.FONT_BUTTON,
+            bg="#4CAF50",
+            fg="#ffffff",
+            activebackground="#45a049",
+            activeforeground="#ffffff",
+            relief="flat",
+            command=lambda: [modal.destroy(), self._show_edit_modal(assinatura)]
+        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        tk.Button(
+            btn_frame,
             text="Fechar",
             font=UI.FONT_BUTTON,
             bg=UI.BTN_BG,
@@ -421,7 +436,160 @@ class AssinaturasView:
             activeforeground=UI.BTN_ACTIVE_FG,
             relief="flat",
             command=modal.destroy
-        ).pack(pady=(30, 0), fill="x")
+        ).pack(side="left", fill="x", expand=True, padx=(5, 0))
+    
+    def _show_edit_modal(self, assinatura):
+        """Mostra modal para editar uma assinatura."""
+        modal = tk.Toplevel(self.parent)
+        modal.title("Editar Assinatura")
+        modal.geometry("500x700")
+        modal.configure(bg=UI.BG_COLOR)
+        modal.transient(self.parent)
+        modal.grab_set()
+        
+        # Centralizar modal
+        modal.update_idletasks()
+        x = (modal.winfo_screenwidth() // 2) - (500 // 2)
+        y = (modal.winfo_screenheight() // 2) - (700 // 2)
+        modal.geometry(f"+{x}+{y}")
+        
+        # Container com scroll
+        canvas = tk.Canvas(modal, bg=UI.BOX_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(modal, orient="vertical", command=canvas.yview)
+        content_frame = tk.Frame(canvas, bg=UI.BOX_BG, padx=30, pady=30)
+        
+        content_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Título
+        tk.Label(
+            content_frame,
+            text="Editar Assinatura",
+            font=("Inter", 18, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047"
+        ).pack(pady=(0, 20))
+        
+        # Campos do formulário
+        tk.Label(content_frame, text="Nome:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_nome = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_nome.insert(0, assinatura.nome)
+        entry_nome.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Valor (R$):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_valor = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_valor.insert(0, str(assinatura.valor))
+        entry_valor.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Vencimento (DD/MM/AAAA):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_data = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_data.insert(0, assinatura.data_vencimento)
+        entry_data.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Periodicidade:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        combo_periodicidade = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_periodicidade['values'] = self.combo_periodicidade['values']
+        combo_periodicidade.set(assinatura.periodicidade)
+        combo_periodicidade.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Categoria:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        combo_tag = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_tag['values'] = self.combo_tag['values']
+        combo_tag.set(assinatura.tag)
+        combo_tag.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Forma de Pagamento:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        combo_pagamento = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_pagamento['values'] = self.combo_pagamento['values']
+        combo_pagamento.set(assinatura.forma_pagamento)
+        combo_pagamento.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Compartilhado com (email):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_usuario = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_usuario.insert(0, assinatura.usuario_compartilhado or "")
+        entry_usuario.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Login:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_login = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_login.insert(0, assinatura.login or "")
+        entry_login.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Senha:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_senha = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG, show="*")
+        entry_senha.insert(0, assinatura.senha or "")
+        entry_senha.pack(fill="x", pady=(0, 10))
+        
+        def salvar_edicao():
+            try:
+                nome = entry_nome.get().strip()
+                valor = float(entry_valor.get().strip().replace(",", "."))
+                data = entry_data.get().strip()
+                periodicidade = combo_periodicidade.get()
+                tag = combo_tag.get()
+                pagamento = combo_pagamento.get()
+                usuario_compartilhado = entry_usuario.get().strip()
+                login = entry_login.get().strip()
+                senha = entry_senha.get().strip()
+                
+                if not nome or not data or not periodicidade or not tag or not pagamento:
+                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+                    return
+                
+                if self.controller:
+                    self.controller.editar(
+                        assinatura_id=assinatura.id,
+                        nome=nome,
+                        data_vencimento=data,
+                        valor=valor,
+                        periodicidade=periodicidade,
+                        tag=tag,
+                        forma_pagamento=pagamento,
+                        usuario_compartilhado=usuario_compartilhado,
+                        login=login,
+                        senha=senha,
+                        favorito=assinatura.favorito
+                    )
+                    modal.destroy()
+                    messagebox.showinfo("Sucesso", "Assinatura atualizada com sucesso!")
+                
+            except ValueError:
+                messagebox.showerror("Erro", "Valor inválido! Use apenas números.")
+        
+        # Botões
+        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        btn_frame.pack(pady=(20, 0), fill="x")
+        
+        tk.Button(
+            btn_frame,
+            text="Salvar",
+            font=UI.FONT_BUTTON,
+            bg="#4CAF50",
+            fg="#ffffff",
+            activebackground="#45a049",
+            activeforeground="#ffffff",
+            relief="flat",
+            command=salvar_edicao
+        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        tk.Button(
+            btn_frame,
+            text="Cancelar",
+            font=UI.FONT_BUTTON,
+            bg="#ff6b6b",
+            fg="#ffffff",
+            activebackground="#ff5252",
+            activeforeground="#ffffff",
+            relief="flat",
+            command=modal.destroy
+        ).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def _on_adicionar(self):
         """Callback quando o botão adicionar é clicado."""

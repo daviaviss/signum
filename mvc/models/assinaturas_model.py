@@ -112,3 +112,43 @@ class AssinaturasModel:
         """Alterna o status de favorito de uma assinatura."""
         if self.dao:
             self.dao.toggle_favorito(assinatura_id)
+    
+    def obter_assinatura(self, assinatura_id: int):
+        """Obtém uma assinatura específica por ID."""
+        if self.dao:
+            return self.dao.get_assinatura_by_id(assinatura_id)
+        return None
+    
+    def editar_assinatura(
+        self,
+        assinatura_id: int,
+        user_id: int,
+        nome: str,
+        data_vencimento: str,
+        valor: float,
+        periodicidade: str,
+        tag: str,
+        forma_pagamento: str,
+        usuario_compartilhado: str = "",
+        login: str = "",
+        senha: str = "",
+        favorito: int = 0
+    ):
+        """Edita uma assinatura existente."""
+        assinatura = Assinatura(
+            assinatura_id=assinatura_id,
+            user_id=user_id,
+            nome=nome,
+            data_vencimento=data_vencimento,
+            valor=valor,
+            periodicidade=periodicidade,
+            tag=tag,
+            forma_pagamento=forma_pagamento,
+            usuario_compartilhado=usuario_compartilhado,
+            login=login,
+            senha=senha,
+            favorito=favorito
+        )
+        if self.dao:
+            self.dao.update_assinatura(assinatura)
+        return True
