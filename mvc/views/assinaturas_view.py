@@ -549,7 +549,19 @@ class AssinaturasView:
         combo_pagamento.pack(fill="x", pady=(0, 10))
         
         tk.Label(content_frame, text="Compartilhado com (email):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
-        # ...existing code...
+        entry_usuario = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_usuario.insert(0, assinatura.usuario_compartilhado or "")
+        entry_usuario.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Login:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_login = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_login.insert(0, assinatura.login or "")
+        entry_login.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(content_frame, text="Senha:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        entry_senha = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG, show="*")
+        entry_senha.insert(0, assinatura.senha or "")
+        entry_senha.pack(fill="x", pady=(0, 10))
         
         def salvar_edicao():
             try:
