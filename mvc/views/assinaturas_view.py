@@ -84,32 +84,50 @@ class AssinaturasView:
         form_title.pack(pady=15, padx=10, fill="x")
         
         # Nome
-        tk.Label(parent, text="Nome:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        nome_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        nome_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(nome_frame, text="Nome: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(nome_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.entry_nome = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_nome.pack(fill="x", padx=10, pady=(0, 10))
         
         # Valor
-        tk.Label(parent, text="Valor (R$):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        valor_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        valor_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(valor_frame, text="Valor (R$): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(valor_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.entry_valor = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_valor.pack(fill="x", padx=10, pady=(0, 10))
         
         # Data de Vencimento
-        tk.Label(parent, text="Vencimento (DD/MM/AAAA):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        data_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        data_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(data_frame, text="Vencimento (DD/MM/AAAA): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(data_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.entry_data = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_data.pack(fill="x", padx=10, pady=(0, 10))
         
         # Periodicidade
-        tk.Label(parent, text="Periodicidade:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        period_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        period_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(period_frame, text="Periodicidade: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(period_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.combo_periodicidade = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_periodicidade.pack(fill="x", padx=10, pady=(0, 10))
         
         # Tag
-        tk.Label(parent, text="Categoria:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        tag_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        tag_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.combo_tag = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_tag.pack(fill="x", padx=10, pady=(0, 10))
         
         # Forma de Pagamento
-        tk.Label(parent, text="Forma de Pagamento:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
+        pag_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        pag_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(pag_frame, text="Forma de Pagamento: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(pag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         self.combo_pagamento = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_pagamento.pack(fill="x", padx=10, pady=(0, 10))
         
@@ -479,53 +497,59 @@ class AssinaturasView:
         ).pack(pady=(0, 20))
         
         # Campos do formulário
-        tk.Label(content_frame, text="Nome:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        nome_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        nome_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(nome_frame, text="Nome: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(nome_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         entry_nome = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         entry_nome.insert(0, assinatura.nome)
         entry_nome.pack(fill="x", pady=(0, 10))
         
-        tk.Label(content_frame, text="Valor (R$):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        valor_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        valor_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(valor_frame, text="Valor (R$): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(valor_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         entry_valor = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         entry_valor.insert(0, str(assinatura.valor))
         entry_valor.pack(fill="x", pady=(0, 10))
         
-        tk.Label(content_frame, text="Vencimento (DD/MM/AAAA):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        data_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        data_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(data_frame, text="Vencimento (DD/MM/AAAA): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(data_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         entry_data = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         entry_data.insert(0, assinatura.data_vencimento)
         entry_data.pack(fill="x", pady=(0, 10))
         
-        tk.Label(content_frame, text="Periodicidade:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        period_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        period_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(period_frame, text="Periodicidade: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(period_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         combo_periodicidade = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
         combo_periodicidade['values'] = self.combo_periodicidade['values']
         combo_periodicidade.set(assinatura.periodicidade)
         combo_periodicidade.pack(fill="x", pady=(0, 10))
         
-        tk.Label(content_frame, text="Categoria:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        tag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        tag_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         combo_tag = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
         combo_tag['values'] = self.combo_tag['values']
         combo_tag.set(assinatura.tag)
         combo_tag.pack(fill="x", pady=(0, 10))
         
-        tk.Label(content_frame, text="Forma de Pagamento:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+        pag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        pag_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(pag_frame, text="Forma de Pagamento: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(pag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         combo_pagamento = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
         combo_pagamento['values'] = self.combo_pagamento['values']
         combo_pagamento.set(assinatura.forma_pagamento)
         combo_pagamento.pack(fill="x", pady=(0, 10))
         
         tk.Label(content_frame, text="Compartilhado com (email):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
-        entry_usuario = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
-        entry_usuario.insert(0, assinatura.usuario_compartilhado or "")
-        entry_usuario.pack(fill="x", pady=(0, 10))
-        
-        tk.Label(content_frame, text="Login:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
-        entry_login = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
-        entry_login.insert(0, assinatura.login or "")
-        entry_login.pack(fill="x", pady=(0, 10))
-        
-        tk.Label(content_frame, text="Senha:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
-        entry_senha = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG, show="*")
-        entry_senha.insert(0, assinatura.senha or "")
-        entry_senha.pack(fill="x", pady=(0, 10))
+        # ...existing code...
         
         def salvar_edicao():
             try:

@@ -5,9 +5,7 @@ from mvc.views.metas_view import MetasView
 from mvc.views.perfil_view import PerfilView
 from mvc.views.navbar_view import NavbarView
 from mvc.views.assinaturas_view import AssinaturasView
-from mvc.views.contratos_view import ContratosView
 from mvc.controllers.assinaturas_controller import AssinaturasController
-from mvc.controllers.contratos_controller import ContratosController
 
 
 class HomeView:
