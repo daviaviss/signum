@@ -1,5 +1,8 @@
-class Assinatura:
-    """Model para Assinatura."""
+from mvc.models.contratos_model import Contrato, ContratosModel
+
+
+class Assinatura(Contrato):
+    """Model para Assinatura - herda de Contrato e adiciona login/senha."""
     
     def __init__(
         self, 
@@ -16,56 +19,30 @@ class Assinatura:
         assinatura_id: int = None,
         user_id: int = None
     ):
-        self.id = assinatura_id
-        self.user_id = user_id
-        self.nome = nome
-        self.data_vencimento = data_vencimento
-        self.valor = valor
-        self.periodicidade = periodicidade  # Mensal, Trimestral, Semestral, Anual
-        self.tag = tag  # Streaming, Software, Educação, etc.
-        self.forma_pagamento = forma_pagamento  # Cartão de Crédito, Débito, PIX, Boleto
-        self.usuario_compartilhado = usuario_compartilhado
+        super().__init__(
+            nome=nome,
+            valor=valor,
+            data_vencimento=data_vencimento,
+            periodicidade=periodicidade,
+            tag=tag,
+            forma_pagamento=forma_pagamento,
+            usuario_compartilhado=usuario_compartilhado,
+            favorito=favorito,
+            contrato_id=assinatura_id,
+            user_id=user_id
+        )
         self.login = login
         self.senha = senha
-        self.favorito = favorito  # 0 = não favorito, 1 = favorito
     
     def __repr__(self):
         return f"<Assinatura id={self.id} nome={self.nome} valor={self.valor}>"
 
 
-class AssinaturasModel:
-    """Model que gerencia assinaturas."""
-    
-    # Tags pré-definidas
-    TAGS_DISPONIVEIS = [
-        "Streaming",
-        "Software",
-        "Educação",
-        "Saúde",
-        "Fitness",
-        "Entretenimento",
-        "Produtividade",
-        "Outro"
-    ]
-    
-    # Periodicidades disponíveis
-    PERIODICIDADES = [
-        "Mensal",
-        "Trimestral",
-        "Semestral",
-        "Anual"
-    ]
-    
-    # Formas de pagamento
-    FORMAS_PAGAMENTO = [
-        "Cartão de Crédito",
-        "Cartão de Débito",
-        "PIX",
-        "Boleto",
-        "Transferência Bancária"
-    ]
+class AssinaturasModel(ContratosModel):
+    """Model que gerencia assinaturas - herda de ContratosModel."""
     
     def __init__(self, dao=None):
+        super().__init__()
         self.dao = dao
     
     def adicionar_assinatura(
@@ -113,12 +90,6 @@ class AssinaturasModel:
         if self.dao:
             self.dao.toggle_favorito(assinatura_id)
     
-    def obter_assinatura(self, assinatura_id: int):
-        """Obtém uma assinatura específica por ID."""
-        if self.dao:
-            return self.dao.get_assinatura_by_id(assinatura_id)
-        return None
-    
     def editar_assinatura(
         self,
         assinatura_id: int,
@@ -135,20 +106,26 @@ class AssinaturasModel:
         favorito: int = 0
     ):
         """Edita uma assinatura existente."""
-        assinatura = Assinatura(
-            assinatura_id=assinatura_id,
-            user_id=user_id,
-            nome=nome,
-            data_vencimento=data_vencimento,
-            valor=valor,
-            periodicidade=periodicidade,
-            tag=tag,
-            forma_pagamento=forma_pagamento,
-            usuario_compartilhado=usuario_compartilhado,
-            login=login,
-            senha=senha,
-            favorito=favorito
-        )
         if self.dao:
+            assinatura = Assinatura(
+                assinatura_id=assinatura_id,
+                user_id=user_id,
+                nome=nome,
+                data_vencimento=data_vencimento,
+                valor=valor,
+                periodicidade=periodicidade,
+                tag=tag,
+                forma_pagamento=forma_pagamento,
+                usuario_compartilhado=usuario_compartilhado,
+                login=login,
+                senha=senha,
+                favorito=favorito
+            )
             self.dao.update_assinatura(assinatura)
         return True
+    
+    def obter_assinatura(self, assinatura_id: int):
+        """Obtém uma assinatura específica por ID."""
+        if self.dao:
+            return self.dao.get_assinatura_by_id(assinatura_id)
+        return None
