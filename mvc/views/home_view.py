@@ -23,6 +23,49 @@ class HomeView:
         self.contratos_controller = None
         # Don't create home screen yet - will be created on first show
 
+    def aside_perfil(self):
+        """Cria um aside sobreposto à direita da tela para exibir informações do perfil."""
+        # Verificar se já existe um aside e removê-lo se existir
+        for widget in self.frame.winfo_children():
+            if isinstance(widget, tk.Frame) and hasattr(widget, '_aside_perfil_flag'):
+                widget.destroy()
+                return  # Sai da função, efetivamente fechando o aside
+                
+        # Se não existia aside, cria um novo
+        aside = tk.Frame(self.frame, bg=UI.BOX_CARD_BG)
+        aside._aside_perfil_flag = True  # Marca para identificação
+        aside.place(relx=0.67, rely=0, y=60, relwidth=0.33, relheight=0.9)
+
+        # Container para o conteúdo
+        content = tk.Frame(aside, bg=UI.BOX_CARD_BG)
+        content.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Botão de editar (imagem edit.png)
+        edit_img = tk.PhotoImage(file="static/edit.png")
+        self._home_imgs.append(edit_img)  
+        edit_btn = tk.Label(content, image=edit_img, bg=UI.BOX_CARD_BG, cursor="hand2")
+        edit_btn.pack(anchor="ne")
+        edit_btn.bind("<Button-1>", lambda e: self.show_profile_screen())
+
+        # Imagem do perfil
+        profile_img = tk.PhotoImage(file="static/profile-aside.png").zoom(2, 2)  # Dobra o tamanho da imagem
+        self._home_imgs.append(profile_img)  # Mantém referência
+        tk.Label(content, image=profile_img, bg=UI.BOX_CARD_BG).pack(pady=(20, 10))
+
+        # Nome do usuário (primeiro nome)
+        if self.usuario_controller and self.usuario_controller.usuario:
+            primeiro_nome = self.usuario_controller.usuario.nome.split()[0]
+            tk.Label(content, text=primeiro_nome, font=("Inter", 14, "bold"), 
+                    bg=UI.BOX_CARD_BG).pack(pady=(0, 30))
+
+        # Botões
+        botoes = ["Fazer backup", "Restaurar backup", "Meios de pagamento"]
+        for texto in botoes:
+            btn = tk.Button(content, text=texto, font=("Inter", 12),
+                          bg=UI.BOX_DESTAQUE_BG, fg="black",
+                          relief="flat", borderwidth=0)
+            btn.pack(fill="x", pady=5)
+
     def _render_navbar(self, parent, active: str):
         """Desenha o navbar no frame 'parent' e pinta de azul o item ativo."""
         callbacks = {
@@ -30,7 +73,7 @@ class HomeView:
             "assinaturas": self.show_assinaturas_screen,
             "contratos": self.show_contratos_screen,
             "metas": self.show_metas_screen,
-            "profile": self.show_profile_screen
+            "profile": self.aside_perfil  
         }
         
         self.navbar = NavbarView(parent, active=active, callback_dict=callbacks)
