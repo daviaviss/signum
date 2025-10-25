@@ -52,14 +52,7 @@ class ContratosModel:
         "Anual"
     ]
     
-    # Formas de pagamento
-    FORMAS_PAGAMENTO = [
-        "Cartão de Crédito",
-        "Cartão de Débito",
-        "PIX",
-        "Boleto",
-        "Transferência Bancária"
-    ]
+    
     
     def __init__(self):
         # Temporário: lista em memória (futuramente usar DAO)

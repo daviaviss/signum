@@ -114,6 +114,122 @@ class UserDAO:
         )
         self.conn.commit()
 
+class PagamentosDAO:
+    """DAO para gerenciar pagamentos no banco de dados."""
+    
+    def __init__(self, db_file="database.sqlite"):
+        self.conn = sqlite3.connect(db_file)
+        self._drop_and_create_table()
+    
+    def _drop_and_create_table(self):
+        """Recria a tabela para aplicar as alterações no schema."""
+        # Primeiro, verifica se a tabela existe
+        cursor = self.conn.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='pagamentos'
+        """)
+        if cursor.fetchone():
+            # Se existe, faz backup dos dados
+            cursor = self.conn.execute("SELECT * FROM pagamentos")
+            dados_antigos = cursor.fetchall()
+            
+            # Drop na tabela antiga
+            self.conn.execute("DROP TABLE pagamentos")
+            self.conn.commit()
+        else:
+            dados_antigos = []
+
+        # Cria a nova tabela
+        query = """
+        CREATE TABLE pagamentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            vencimento TEXT,
+            forma_pagamento TEXT NOT NULL
+        )
+        """
+        self.conn.execute(query)
+        
+        # Restaura os dados antigos
+        if dados_antigos:
+            self.conn.executemany(
+                "INSERT INTO pagamentos (id, nome, vencimento, forma_pagamento) VALUES (?, ?, ?, ?)",
+                dados_antigos
+            )
+        
+        self.conn.commit()
+    
+    def add_pagamento(self, pagamento):
+        """Adiciona um novo pagamento ao banco."""
+        query = """
+            INSERT INTO pagamentos (nome, vencimento, forma_pagamento)
+            VALUES (?, ?, ?)
+        """
+        cursor = self.conn.execute(
+            query,
+            (
+                pagamento.nome,
+                pagamento.vencimento.isoformat() if pagamento.vencimento else None,  # None se não tiver data
+                pagamento.forma_de_pagamento.value  # Pega o valor do enum
+            )
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_all_pagamentos(self):
+        """Retorna todos os pagamentos ordenados por data de vencimento."""
+        from mvc.models.pagamentos_model import PagamentoModel
+        from mvc.models.forma_pagamento_enum import FormaPagamento
+        from datetime import datetime
+
+        cursor = self.conn.execute(
+            """
+            SELECT id, nome, vencimento, forma_pagamento
+            FROM pagamentos
+            ORDER BY vencimento
+            """
+        )
+        
+        pagamentos = []
+        for row in cursor.fetchall():
+            # Converte a data apenas se não for None
+            vencimento = datetime.fromisoformat(row[2]).date() if row[2] else None
+            pagamento = PagamentoModel(
+                nome=row[1],
+                vencimento=vencimento,
+                forma_de_pagamento=FormaPagamento(row[3])
+            )
+            setattr(pagamento, 'id', row[0])  # Adiciona o ID ao objeto
+            pagamentos.append(pagamento)
+        
+        return pagamentos
+    
+    def update_pagamento(self, pagamento_id, pagamento):
+        """Atualiza um pagamento existente."""
+        query = """
+            UPDATE pagamentos
+            SET nome = ?, vencimento = ?, forma_pagamento = ?
+            WHERE id = ?
+        """
+        self.conn.execute(
+            query,
+            (
+                pagamento.nome,
+                pagamento.vencimento.isoformat() if pagamento.vencimento else None,
+                pagamento.forma_de_pagamento.value,
+                pagamento_id
+            )
+        )
+        self.conn.commit()
+    
+    def delete_pagamento(self, pagamento_id):
+        """Remove um pagamento do banco."""
+        self.conn.execute(
+            "DELETE FROM pagamentos WHERE id = ?",
+            (pagamento_id,)
+        )
+        self.conn.commit()
+
 class AssinaturasDAO:
     """DAO para gerenciar assinaturas no banco de dados."""
     

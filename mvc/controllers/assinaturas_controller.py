@@ -12,11 +12,15 @@ class AssinaturasController:
         self.model = AssinaturasModel(dao=self.dao)
         self.view.controller = self
         
+        # Importa o controller de pagamentos para obter os métodos cadastrados
+        from mvc.controllers.pagamentos_controller import PagamentosController
+        self.pagamentos_controller = PagamentosController()
+        
         # Popula os comboboxes
         self.view.set_combo_values(
             self.model.PERIODICIDADES,
             self.model.TAGS_DISPONIVEIS,
-            self.model.FORMAS_PAGAMENTO
+            self.pagamentos_controller.obter_nomes_metodos_pagamento()  # Usa os métodos cadastrados
         )
         
         self._carregar_assinaturas()
@@ -113,5 +117,5 @@ class AssinaturasController:
         return AssinaturasModel.PERIODICIDADES
     
     def get_formas_pagamento(self):
-        """Retorna lista de formas de pagamento disponíveis."""
-        return AssinaturasModel.FORMAS_PAGAMENTO
+        """Retorna lista de formas de pagamento cadastradas."""
+        return self.pagamentos_controller.obter_nomes_metodos_pagamento()
