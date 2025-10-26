@@ -59,3 +59,10 @@ class UserLoginController:
             self.view.show_home_screen()
         else:
             self.view.show_error("Erro", "Email ou senha incorretos.")
+
+    def logout(self):
+        """Efetua logout e retorna à tela de login."""
+        uc = getattr(self.view, "usuario_controller", None)
+        if uc is not None:
+            uc.logout()
+        self.view.show_login_screen()

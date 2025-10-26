@@ -24,6 +24,7 @@ class UserLoginView:
         self.login_view = LoginView(root, self.show_register_screen)
         self.home_view = HomeView(root)
 
+
         # Start with login screen
         self.show_login_screen()
 

@@ -6,6 +6,8 @@ from mvc.views.perfil_view import PerfilView
 from mvc.views.navbar_view import NavbarView
 from mvc.views.assinaturas_view import AssinaturasView
 from mvc.controllers.assinaturas_controller import AssinaturasController
+from mvc.views.contratos_view import ContratosView
+from mvc.controllers.contratos_controller import ContratosController
 
 
 class HomeView:
@@ -21,6 +23,7 @@ class HomeView:
         self.perfil_view = None
         self.assinaturas_controller = None
         self.contratos_controller = None
+        self.on_logout = None
         # Don't create home screen yet - will be created on first show
 
     def aside_perfil(self):
@@ -71,7 +74,8 @@ class HomeView:
         botoes_config = [
             ("Fazer backup", None),
             ("Restaurar backup", None),
-            ("Meios de pagamento", abrir_pagamentos)
+            ("Meios de pagamento", abrir_pagamentos),
+            ("Sair", self._on_logout)
         ]
 
         for texto, comando in botoes_config:
@@ -80,6 +84,10 @@ class HomeView:
                           relief="flat", borderwidth=0,
                           command=comando)
             btn.pack(fill="x", pady=5)
+
+    def _on_logout(self):
+        if callable(self.on_logout):
+            self.on_logout()
 
     def _render_navbar(self, parent, active: str):
         """Desenha o navbar no frame 'parent' e pinta de azul o item ativo."""
@@ -253,7 +261,8 @@ class HomeView:
         content.pack(fill="both", expand=True)
 
         contratos_view = ContratosView(content)
-        self.contratos_controller = ContratosController(contratos_view)
+        user_id = self.usuario_controller.usuario.id if self.usuario_controller and hasattr(self.usuario_controller, 'usuario') else None
+        self.contratos_controller = ContratosController(contratos_view, user_id)
 
     def show_home_screen(self):
         """Recarrega a home screen."""
