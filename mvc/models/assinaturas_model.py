@@ -2,7 +2,7 @@ from mvc.models.contratos_model import Contrato, ContratosModel
 
 
 class Assinatura(Contrato):
-    """Model para Assinatura - herda de Contrato e adiciona login/senha."""
+    """Model para Assinatura - herda de Contrato e adiciona login/senha e forma de pagamento."""
     
     def __init__(
         self, 
@@ -25,14 +25,18 @@ class Assinatura(Contrato):
             data_vencimento=data_vencimento,
             periodicidade=periodicidade,
             tag=tag,
-            forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             contrato_id=assinatura_id,
             user_id=user_id
         )
+        self.forma_pagamento = forma_pagamento
         self.login = login
         self.senha = senha
+    
+    @property
+    def tipo(self) -> str:
+        return "assinatura"
     
     def __repr__(self):
         return f"<Assinatura id={self.id} nome={self.nome} valor={self.valor}>"

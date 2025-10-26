@@ -383,3 +383,176 @@ class AssinaturasDAO:
             )
         )
         self.conn.commit()
+
+class ContratosDAO:
+    """DAO para gerenciar contratos no banco de dados."""
+    
+    def __init__(self, db_file="database.sqlite"):
+        self.conn = sqlite3.connect(db_file)
+        self._create_table()
+        self._migrate_schema()
+        
+    def _create_table(self):
+        query = """
+        CREATE TABLE IF NOT EXISTS contratos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            data_vencimento TEXT NOT NULL,
+            valor REAL NOT NULL,
+            periodicidade TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            usuario_compartilhado TEXT,
+            favorito INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        """
+        self.conn.execute(query)
+        self.conn.commit()
+        self._ensure_favorito_column()
+    
+    def _ensure_favorito_column(self):
+        """Adiciona coluna favorito se não existir."""
+        cur = self.conn.execute("PRAGMA table_info(contratos)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "favorito" not in cols:
+            self.conn.execute(
+                "ALTER TABLE contratos ADD COLUMN favorito INTEGER DEFAULT 0"
+            )
+            self.conn.commit()
+    
+    def _migrate_schema(self):
+        """Migra schema antigo removendo colunas forma_pagamento/login/senha se existirem."""
+        try:
+            cur = self.conn.execute("PRAGMA table_info(contratos)")
+            cols = [row[1] for row in cur.fetchall()]
+            if not cols:
+                return
+            # Se tabela possui quaisquer colunas antigas, recria com schema novo
+            if any(c in cols for c in ("forma_pagamento", "login", "senha")):
+                self.conn.execute(
+                    """
+                    CREATE TABLE contratos_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        nome TEXT NOT NULL,
+                        data_vencimento TEXT NOT NULL,
+                        valor REAL NOT NULL,
+                        periodicidade TEXT NOT NULL,
+                        tag TEXT NOT NULL,
+                        usuario_compartilhado TEXT,
+                        favorito INTEGER DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                    """
+                )
+                self.conn.execute(
+                    """
+                    INSERT INTO contratos_new (
+                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
+                    )
+                    SELECT 
+                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, COALESCE(favorito, 0)
+                    FROM contratos
+                    """
+                )
+                self.conn.execute("DROP TABLE contratos")
+                self.conn.execute("ALTER TABLE contratos_new RENAME TO contratos")
+                self.conn.commit()
+        except Exception:
+            # Se algo falhar, não quebrar app; mantém tabela como está
+            pass
+    
+    def add_contrato(self, contrato):
+        """Adiciona um novo contrato ao banco."""
+        cursor = self.conn.execute(
+            """
+            INSERT INTO contratos (
+                user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                contrato.user_id,
+                contrato.nome,
+                contrato.data_vencimento,
+                contrato.valor,
+                contrato.periodicidade,
+                contrato.tag,
+                contrato.usuario_compartilhado,
+                1 if getattr(contrato, "favorito", False) else 0,
+            ),
+        )
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_contratos_by_user(self, user_id: int) -> List:
+        """Retorna todos os contratos de um usuário, favoritos primeiro."""
+        cursor = self.conn.execute(
+            """
+            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
+            FROM contratos
+            WHERE user_id = ?
+            ORDER BY favorito DESC, id DESC
+            """,
+            (user_id,),
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": r[0],
+                "user_id": r[1],
+                "nome": r[2],
+                "data_vencimento": r[3],
+                "valor": r[4],
+                "periodicidade": r[5],
+                "tag": r[6],
+                "usuario_compartilhado": r[7],
+                "favorito": bool(r[8]),
+            }
+            for r in rows
+        ]
+    
+    def toggle_favorito(self, contrato_id: int):
+        """Alterna o status de favorito."""
+        cursor = self.conn.execute(
+            "SELECT favorito FROM contratos WHERE id = ?",
+            (contrato_id,)
+        )
+        row = cursor.fetchone()
+        if row is not None:
+            new_status = 0 if row[0] == 1 else 1
+            self.conn.execute(
+                "UPDATE contratos SET favorito = ? WHERE id = ?",
+                (new_status, contrato_id)
+            )
+            self.conn.commit()
+    
+    def delete_contrato(self, contrato_id: int):
+        """Remove um contrato do banco."""
+        self.conn.execute(
+            "DELETE FROM contratos WHERE id = ?",
+            (contrato_id,)
+        )
+        self.conn.commit()
+    
+    def update_contrato(self, contrato):
+        """Atualiza um contrato existente."""
+        self.conn.execute(
+            """
+            UPDATE contratos
+            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, tag = ?, usuario_compartilhado = ?, favorito = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (
+                contrato.nome,
+                contrato.data_vencimento,
+                contrato.valor,
+                contrato.periodicidade,
+                contrato.tag,
+                contrato.usuario_compartilhado,
+                1 if getattr(contrato, "favorito", False) else 0,
+                contrato.id,
+                contrato.user_id,
+            ),
+        )
+        self.conn.commit()
