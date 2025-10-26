@@ -21,6 +21,10 @@ class UsuarioController:
         """Vincula o usuário logado a este controller."""
         self.usuario = usuario
 
+    def logout(self) -> None:
+        """Desvincula o usuário atual (logout)."""
+        self.usuario = None
+
     def carregar_por_email(self, email: str) -> Optional[Usuario]:
         """
         Carrega o usuário pelo e-mail a partir do DAO e o vincula.

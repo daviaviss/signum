@@ -23,6 +23,7 @@ class HomeView:
         self.perfil_view = None
         self.assinaturas_controller = None
         self.contratos_controller = None
+        self.on_logout = None
         # Don't create home screen yet - will be created on first show
 
     def aside_perfil(self):
@@ -73,7 +74,8 @@ class HomeView:
         botoes_config = [
             ("Fazer backup", None),
             ("Restaurar backup", None),
-            ("Meios de pagamento", abrir_pagamentos)
+            ("Meios de pagamento", abrir_pagamentos),
+            ("Sair", self._on_logout)
         ]
 
         for texto, comando in botoes_config:
@@ -82,6 +84,10 @@ class HomeView:
                           relief="flat", borderwidth=0,
                           command=comando)
             btn.pack(fill="x", pady=5)
+
+    def _on_logout(self):
+        if callable(self.on_logout):
+            self.on_logout()
 
     def _render_navbar(self, parent, active: str):
         """Desenha o navbar no frame 'parent' e pinta de azul o item ativo."""

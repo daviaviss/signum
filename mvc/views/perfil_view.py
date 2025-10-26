@@ -3,10 +3,11 @@ from tkinter import messagebox
 from mvc import ui_constants as UI
 
 class PerfilView:
-    def __init__(self, parent, usuario_controller):
+    def __init__(self, parent, usuario_controller, on_profile_updated=None):
         self.parent = parent
         self.usuario_controller = usuario_controller
         self.usuario = usuario_controller.usuario
+        self.on_profile_updated = on_profile_updated
         self._create_profile_screen()
 
     def _create_profile_screen(self):
@@ -25,10 +26,11 @@ class PerfilView:
         self.name_entry.insert(0, self.usuario.nome)
         self.name_entry.pack(pady=UI.PAD_Y)
 
-        # Email
+        # Email (não editável)
         self.email_entry = tk.Entry(box, font=UI.FONT_ENTRY, width=30,
                                   bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.email_entry.insert(0, self.usuario.email)
+        self.email_entry.config(state="disabled")
         self.email_entry.pack(pady=UI.PAD_Y)
 
         # Senha
@@ -51,16 +53,23 @@ class PerfilView:
         self.save_button.pack(pady=UI.PAD_Y)
 
     def save_profile(self):
-        new_name = self.name_entry.get()
-        new_email = self.email_entry.get()
-        new_password = self.password_entry.get()
+        new_name = self.name_entry.get().strip()
+        new_email = self.usuario.email  # e-mail permanece o atual, não editável
+        new_password = self.password_entry.get().strip()
 
-        if not new_name or not new_email:
-            messagebox.showerror("Erro", "Nome e email são obrigatórios!")
+        # Validações alinhadas ao cadastro
+        if not new_name:
+            messagebox.showerror("Erro de Validação", "Por favor, preencha seu nome completo.")
+            return
+        if new_password and len(new_password) < 6:
+            messagebox.showerror("Erro de Validação", "A senha deve ter pelo menos 6 caracteres.")
             return
 
         try:
             self.usuario_controller.update_profile(new_name, new_email, new_password)
+            # Atualiza visual da sidebar se callback disponível
+            if callable(self.on_profile_updated):
+                self.on_profile_updated()
             messagebox.showinfo("Sucesso", "Perfil atualizado com sucesso!")
         except Exception as e:
             messagebox.showerror("Erro", str(e))
