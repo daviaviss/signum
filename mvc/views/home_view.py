@@ -59,11 +59,26 @@ class HomeView:
                     bg=UI.BOX_CARD_BG).pack(pady=(0, 30))
 
         # Botões
-        botoes = ["Fazer backup", "Restaurar backup", "Meios de pagamento"]
-        for texto in botoes:
+        def abrir_pagamentos():
+            from mvc.views.pagamentos_view import PagamentosView
+            for w in self.frame.winfo_children():
+                w.destroy()
+            self._render_navbar(self.frame, active="")
+            content = tk.Frame(self.frame, bg=UI.BG_COLOR)
+            content.pack(fill="both", expand=True)
+            PagamentosView(content)
+
+        botoes_config = [
+            ("Fazer backup", None),
+            ("Restaurar backup", None),
+            ("Meios de pagamento", abrir_pagamentos)
+        ]
+
+        for texto, comando in botoes_config:
             btn = tk.Button(content, text=texto, font=("Inter", 12),
                           bg=UI.BOX_DESTAQUE_BG, fg="black",
-                          relief="flat", borderwidth=0)
+                          relief="flat", borderwidth=0,
+                          command=comando)
             btn.pack(fill="x", pady=5)
 
     def _render_navbar(self, parent, active: str):
