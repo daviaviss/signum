@@ -564,20 +564,24 @@ class AssinaturasView:
         entry_senha.pack(fill="x", pady=(0, 10))
         
         def salvar_edicao():
+            # Get all values first
+            nome = entry_nome.get().strip()
+            valor_str = entry_valor.get().strip()
+            data = entry_data.get().strip()
+            periodicidade = combo_periodicidade.get()
+            tag = combo_tag.get()
+            pagamento = combo_pagamento.get()
+            usuario_compartilhado = entry_usuario.get().strip()
+            login = entry_login.get().strip()
+            senha = entry_senha.get().strip()
+            
+            # Validate required fields BEFORE parsing
+            if not nome or not valor_str or not data or not periodicidade or not tag or not pagamento:
+                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+                return
+            
             try:
-                nome = entry_nome.get().strip()
-                valor = float(entry_valor.get().strip().replace(",", "."))
-                data = entry_data.get().strip()
-                periodicidade = combo_periodicidade.get()
-                tag = combo_tag.get()
-                pagamento = combo_pagamento.get()
-                usuario_compartilhado = entry_usuario.get().strip()
-                login = entry_login.get().strip()
-                senha = entry_senha.get().strip()
-                
-                if not nome or not data or not periodicidade or not tag or not pagamento:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
-                    return
+                valor = float(valor_str.replace(",", "."))
                 
                 if self.controller:
                     self.controller.editar(
@@ -597,7 +601,7 @@ class AssinaturasView:
                     messagebox.showinfo("Sucesso", "Assinatura atualizada com sucesso!")
                 
             except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números.")
+                messagebox.showerror("Erro", "Valor inválido! Use apenas números nos campos numéricos.")
         
         # Botões
         btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
@@ -630,20 +634,24 @@ class AssinaturasView:
     def _on_adicionar(self):
         """Callback quando o botão adicionar é clicado."""
         if self.controller:
+            # Get all values first
+            nome = self.entry_nome.get().strip()
+            valor_str = self.entry_valor.get().strip()
+            data = self.entry_data.get().strip()
+            periodicidade = self.combo_periodicidade.get()
+            tag = self.combo_tag.get()
+            pagamento = self.combo_pagamento.get()
+            usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
+            login = self.entry_login.get().strip()
+            senha = self.entry_senha.get().strip()
+            
+            # Validate required fields BEFORE parsing
+            if not nome or not valor_str or not data or not periodicidade or not tag or not pagamento:
+                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+                return
+            
             try:
-                nome = self.entry_nome.get().strip()
-                valor = float(self.entry_valor.get().strip().replace(",", "."))
-                data = self.entry_data.get().strip()
-                periodicidade = self.combo_periodicidade.get()
-                tag = self.combo_tag.get()
-                pagamento = self.combo_pagamento.get()
-                usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
-                login = self.entry_login.get().strip()
-                senha = self.entry_senha.get().strip()
-                
-                if not nome or not data or not periodicidade or not tag or not pagamento:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
-                    return
+                valor = float(valor_str.replace(",", "."))
                 
                 self.controller.adicionar(
                     nome=nome,
@@ -668,7 +676,7 @@ class AssinaturasView:
                 messagebox.showinfo("Sucesso", "Assinatura adicionada com sucesso!")
                 
             except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números.")
+                messagebox.showerror("Erro", "Valor inválido! Use apenas números nos campos numéricos.")
     
     def _on_remover(self):
         """Callback quando o botão remover é clicado."""

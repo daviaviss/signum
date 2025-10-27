@@ -273,7 +273,6 @@ class AssinaturasDAO:
     
     def add_assinatura(self, assinatura):
         """Adiciona uma nova assinatura ao banco."""
-        from mvc.models.assinaturas_model import Assinatura
         query = """
             INSERT INTO assinaturas 
             (user_id, nome, data_vencimento, valor, periodicidade, tag, 
