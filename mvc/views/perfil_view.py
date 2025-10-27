@@ -8,7 +8,40 @@ class PerfilView:
         self.usuario_controller = usuario_controller
         self.usuario = usuario_controller.usuario
         self.on_profile_updated = on_profile_updated
+        self._placeholders = {}
         self._create_profile_screen()
+
+    def _add_placeholder(self, entry, text, is_password=False):
+        def on_focus_in(event):
+            if entry.get() == text:
+                entry.delete(0, tk.END)
+                entry.config(fg=UI.ENTRY_FG)
+                if is_password:
+                    entry.config(show="*")
+
+        def on_focus_out(event):
+            if not entry.get():
+                entry.insert(0, text)
+                entry.config(fg=UI.ENTRY_PLACEHOLDER_FG)
+                if is_password:
+                    entry.config(show="")
+
+        # Only insert placeholder initially if field is empty
+        if not entry.get():
+            entry.insert(0, text)
+            entry.config(fg=UI.ENTRY_PLACEHOLDER_FG)
+            if is_password:
+                entry.config(show="")
+
+        entry.bind("<FocusIn>", on_focus_in)
+        entry.bind("<FocusOut>", on_focus_out)
+        self._placeholders[entry] = text
+
+    def get_field_value(self, entry):
+        value = entry.get().strip()
+        if entry in self._placeholders and value == self._placeholders[entry]:
+            return ""
+        return value
 
     def _create_profile_screen(self):
         box = tk.Frame(
@@ -25,6 +58,8 @@ class PerfilView:
                                  bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.name_entry.insert(0, self.usuario.nome)
         self.name_entry.pack(pady=UI.PAD_Y)
+        # Add placeholder when field is cleared
+        self._add_placeholder(self.name_entry, "Seu nome completo...")
 
         # Email (não editável)
         self.email_entry = tk.Entry(box, font=UI.FONT_ENTRY, width=30,
@@ -37,6 +72,8 @@ class PerfilView:
         self.password_entry = tk.Entry(box, font=UI.FONT_ENTRY, width=30,
                                     bg=UI.ENTRY_BG, fg=UI.ENTRY_FG, show="*")
         self.password_entry.pack(pady=UI.PAD_Y)
+        # Placeholder visível para senha quando vazia
+        self._add_placeholder(self.password_entry, "Nova senha...", is_password=True)
         tk.Label(box, text="Deixe em branco para manter a senha atual", 
                 font=("Inter", 8), bg=UI.BOX_BG).pack()
 
@@ -53,9 +90,9 @@ class PerfilView:
         self.save_button.pack(pady=UI.PAD_Y)
 
     def save_profile(self):
-        new_name = self.name_entry.get().strip()
+        new_name = self.get_field_value(self.name_entry)
         new_email = self.usuario.email  # e-mail permanece o atual, não editável
-        new_password = self.password_entry.get().strip()
+        new_password = self.get_field_value(self.password_entry)
 
         # Validações alinhadas ao cadastro
         if not new_name:

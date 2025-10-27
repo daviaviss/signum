@@ -391,6 +391,7 @@ class ContratosDAO:
         self.conn = sqlite3.connect(db_file)
         self._create_table()
         self._migrate_schema()
+        self._ensure_status_column()
         
     def _create_table(self):
         query = """
@@ -404,6 +405,7 @@ class ContratosDAO:
             tag TEXT NOT NULL,
             usuario_compartilhado TEXT,
             favorito INTEGER DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'Ativo',
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
         """
@@ -418,6 +420,16 @@ class ContratosDAO:
         if "favorito" not in cols:
             self.conn.execute(
                 "ALTER TABLE contratos ADD COLUMN favorito INTEGER DEFAULT 0"
+            )
+            self.conn.commit()
+    
+    def _ensure_status_column(self):
+        """Adiciona coluna status se não existir."""
+        cur = self.conn.execute("PRAGMA table_info(contratos)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "status" not in cols:
+            self.conn.execute(
+                "ALTER TABLE contratos ADD COLUMN status TEXT NOT NULL DEFAULT 'Ativo'"
             )
             self.conn.commit()
     
@@ -442,6 +454,7 @@ class ContratosDAO:
                         tag TEXT NOT NULL,
                         usuario_compartilhado TEXT,
                         favorito INTEGER DEFAULT 0,
+                        status TEXT NOT NULL DEFAULT 'Ativo',
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                     """
@@ -449,10 +462,10 @@ class ContratosDAO:
                 self.conn.execute(
                     """
                     INSERT INTO contratos_new (
-                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
+                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
                     )
                     SELECT 
-                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, COALESCE(favorito, 0)
+                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, COALESCE(favorito, 0), 'Ativo'
                     FROM contratos
                     """
                 )
@@ -468,18 +481,19 @@ class ContratosDAO:
         cursor = self.conn.execute(
             """
             INSERT INTO contratos (
-                user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 contrato.user_id,
                 contrato.nome,
                 contrato.data_vencimento,
                 contrato.valor,
-                contrato.periodicidade,
-                contrato.tag,
+                contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
+                contrato.tag if isinstance(contrato.tag, str) else contrato.tag.value,
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
+                contrato.status.value if hasattr(contrato, 'status') else 'Ativo',
             ),
         )
         self.conn.commit()
@@ -489,7 +503,7 @@ class ContratosDAO:
         """Retorna todos os contratos de um usuário, favoritos primeiro."""
         cursor = self.conn.execute(
             """
-            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito
+            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
             FROM contratos
             WHERE user_id = ?
             ORDER BY favorito DESC, id DESC
@@ -508,6 +522,7 @@ class ContratosDAO:
                 "tag": r[6],
                 "usuario_compartilhado": r[7],
                 "favorito": bool(r[8]),
+                "status": r[9],
             }
             for r in rows
         ]
@@ -540,17 +555,18 @@ class ContratosDAO:
         self.conn.execute(
             """
             UPDATE contratos
-            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, tag = ?, usuario_compartilhado = ?, favorito = ?
+            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, tag = ?, usuario_compartilhado = ?, favorito = ?, status = ?
             WHERE id = ? AND user_id = ?
             """,
             (
                 contrato.nome,
                 contrato.data_vencimento,
                 contrato.valor,
-                contrato.periodicidade,
-                contrato.tag,
+                contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
+                contrato.tag if isinstance(contrato.tag, str) else contrato.tag.value,
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
+                contrato.status.value if hasattr(contrato, 'status') else 'Ativo',
                 contrato.id,
                 contrato.user_id,
             ),
