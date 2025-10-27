@@ -1,5 +1,8 @@
-from mvc.models.contratos_model import ContratosModel
 from dao import ContratosDAO
+from mvc.models.contratos_model import ContratoGenerico
+from mvc.models.periodicidade_enum import Periodicidade
+from mvc.models.contrato_categoria_enum import CategoriaContrato
+from mvc.models.contrato_status_enum import StatusContrato
 
 
 class ContratosController:
@@ -9,13 +12,13 @@ class ContratosController:
         self.view = view
         self.user_id = user_id
         self.dao = ContratosDAO()
-        self.model = ContratosModel(dao=self.dao)
+        # Removido ContratosModel; controller usa DAO diretamente
         self.view.controller = self
         
-        # Popula os comboboxes (periodicidade e tags)
+        # Popula os comboboxes (periodicidade e tags) via enums
         self.view.set_combo_values(
-            self.model.PERIODICIDADES,
-            self.model.TAGS_DISPONIVEIS,
+            [p.value for p in Periodicidade],
+            [c.value for c in CategoriaContrato],
         )
         
         self._carregar_contratos()
@@ -23,7 +26,22 @@ class ContratosController:
     def _carregar_contratos(self):
         """Carrega e exibe os contratos do usuário."""
         if self.user_id:
-            contratos = self.model.listar_contratos(self.user_id)
+            rows = self.dao.get_contratos_by_user(self.user_id)
+            contratos = [
+                ContratoGenerico(
+                    contrato_id=r["id"],
+                    user_id=r["user_id"],
+                    nome=r["nome"],
+                    data_vencimento=r["data_vencimento"],
+                    valor=r["valor"],
+                    periodicidade=r["periodicidade"],
+                    tag=r["tag"],
+                    usuario_compartilhado=r.get("usuario_compartilhado") or "",
+                    favorito=1 if r.get("favorito") else 0,
+                    status=StatusContrato(r.get("status", StatusContrato.ATIVO.value))
+                )
+                for r in rows
+            ]
             self.view.atualizar_lista(contratos)
     
     def adicionar(
@@ -39,27 +57,30 @@ class ContratosController:
         if not self.user_id:
             return False
         
-        self.model.adicionar_contrato(
-            user_id=self.user_id,
+        contrato = ContratoGenerico(
             nome=nome,
-            data_vencimento=data_vencimento,
             valor=valor,
+            data_vencimento=data_vencimento,
             periodicidade=periodicidade,
             tag=tag,
             usuario_compartilhado=usuario_compartilhado,
+            favorito=0,
+            user_id=self.user_id,
+            status=StatusContrato.ATIVO,
         )
+        self.dao.add_contrato(contrato)
         self._carregar_contratos()
         return True
     
     def remover(self, contrato_id: int):
         """Remove um contrato."""
-        self.model.remover_contrato(contrato_id)
+        self.dao.delete_contrato(contrato_id)
         self._carregar_contratos()
     
     def toggle_favorito(self, contrato_id: int):
         """Alterna o status de favorito de um contrato."""
         if self.user_id:
-            self.model.toggle_favorito(contrato_id, self.user_id)
+            self.dao.toggle_favorito(contrato_id)
             self._carregar_contratos()
     
     def editar(
@@ -77,24 +98,26 @@ class ContratosController:
         if not self.user_id:
             return False
         
-        self.model.editar_contrato(
-            contrato_id=contrato_id,
-            user_id=self.user_id,
+        contrato = ContratoGenerico(
             nome=nome,
-            data_vencimento=data_vencimento,
             valor=valor,
+            data_vencimento=data_vencimento,
             periodicidade=periodicidade,
             tag=tag,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
+            contrato_id=contrato_id,
+            user_id=self.user_id,
+            status=StatusContrato.ATIVO,
         )
+        self.dao.update_contrato(contrato)
         self._carregar_contratos()
         return True
     
     def get_tags_disponiveis(self):
         """Retorna lista de tags disponíveis."""
-        return ContratosModel.TAGS_DISPONIVEIS
+        return [c.value for c in CategoriaContrato]
     
     def get_periodicidades(self):
         """Retorna lista de periodicidades disponíveis."""
-        return ContratosModel.PERIODICIDADES
+        return [p.value for p in Periodicidade]

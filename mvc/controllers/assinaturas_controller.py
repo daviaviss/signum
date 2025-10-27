@@ -1,5 +1,7 @@
-from mvc.models.assinaturas_model import AssinaturasModel
 from dao import AssinaturasDAO
+from mvc.models.assinaturas_model import Assinatura
+from mvc.models.periodicidade_enum import Periodicidade
+from mvc.models.assinatura_categoria_enum import CategoriaAssinatura
 
 
 class AssinaturasController:
@@ -9,18 +11,18 @@ class AssinaturasController:
         self.view = view
         self.user_id = user_id
         self.dao = AssinaturasDAO()
-        self.model = AssinaturasModel(dao=self.dao)
+        # Removido AssinaturasModel; controller usa DAO diretamente
         self.view.controller = self
         
         # Importa o controller de pagamentos para obter os métodos cadastrados
         from mvc.controllers.pagamentos_controller import PagamentosController
         self.pagamentos_controller = PagamentosController()
         
-        # Popula os comboboxes
+        # Popula os comboboxes usando enums diretamente
         self.view.set_combo_values(
-            self.model.PERIODICIDADES,
-            self.model.TAGS_DISPONIVEIS,
-            self.pagamentos_controller.obter_nomes_metodos_pagamento()  # Usa os métodos cadastrados
+            [p.value for p in Periodicidade],
+            [c.value for c in CategoriaAssinatura],
+            self.pagamentos_controller.obter_nomes_metodos_pagamento()
         )
         
         self._carregar_assinaturas()
@@ -28,7 +30,7 @@ class AssinaturasController:
     def _carregar_assinaturas(self):
         """Carrega e exibe as assinaturas do usuário."""
         if self.user_id:
-            assinaturas = self.model.listar_assinaturas(self.user_id)
+            assinaturas = self.dao.get_assinaturas_by_user(self.user_id)
             self.view.atualizar_lista(assinaturas)
     
     def adicionar(
@@ -47,8 +49,7 @@ class AssinaturasController:
         if not self.user_id:
             return False
         
-        self.model.adicionar_assinatura(
-            user_id=self.user_id,
+        assinatura = Assinatura(
             nome=nome,
             data_vencimento=data_vencimento,
             valor=valor,
@@ -57,20 +58,23 @@ class AssinaturasController:
             forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             login=login,
-            senha=senha
+            senha=senha,
+            favorito=0,
+            user_id=self.user_id
         )
+        self.dao.add_assinatura(assinatura)
         self._carregar_assinaturas()
         return True
     
     def remover(self, assinatura_id: int):
         """Remove uma assinatura."""
-        self.model.remover_assinatura(assinatura_id)
+        self.dao.delete_assinatura(assinatura_id)
         self._carregar_assinaturas()
     
     def toggle_favorito(self, assinatura_id: int):
         """Alterna o status de favorito de uma assinatura."""
         if self.user_id:
-            self.model.toggle_favorito(assinatura_id, self.user_id)
+            self.dao.toggle_favorito(assinatura_id)
             self._carregar_assinaturas()
     
     def editar(
@@ -91,7 +95,7 @@ class AssinaturasController:
         if not self.user_id:
             return False
         
-        self.model.editar_assinatura(
+        assinatura = Assinatura(
             assinatura_id=assinatura_id,
             user_id=self.user_id,
             nome=nome,
@@ -105,16 +109,17 @@ class AssinaturasController:
             senha=senha,
             favorito=favorito
         )
+        self.dao.update_assinatura(assinatura)
         self._carregar_assinaturas()
         return True
     
     def get_tags_disponiveis(self):
         """Retorna lista de tags disponíveis."""
-        return AssinaturasModel.TAGS_DISPONIVEIS
+        return [c.value for c in CategoriaAssinatura]
     
     def get_periodicidades(self):
         """Retorna lista de periodicidades disponíveis."""
-        return AssinaturasModel.PERIODICIDADES
+        return [p.value for p in Periodicidade]
     
     def get_formas_pagamento(self):
         """Retorna lista de formas de pagamento cadastradas."""
