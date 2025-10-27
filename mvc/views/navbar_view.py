@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from mvc import ui_constants as UI
 
 class NavbarView:
@@ -29,6 +30,7 @@ class NavbarView:
         # Imagens
         self.home_img = None
         self.profile_img = None
+        self.notification_img = None
         
         # Renderiza a navbar
         self._render_navbar()
@@ -42,6 +44,7 @@ class NavbarView:
 
         self.home_img = tk.PhotoImage(file="static/home.png")
         self.profile_img = tk.PhotoImage(file="static/profile.png")
+        self.notification_img = tk.PhotoImage(file="static/notification.png")
 
         # Ícone de Home (esquerda)
         home_btn = tk.Label(self.header, image=self.home_img, bg=self.BOX_BG, cursor="hand2")
@@ -61,6 +64,11 @@ class NavbarView:
         profile_btn = tk.Label(self.header, image=self.profile_img, bg=self.BOX_BG, cursor="hand2")
         profile_btn.pack(side="right", padx=10)
         profile_btn.bind("<Button-1>", lambda e: self._call_callback("profile"))
+
+        # Ícone de notificação (direita, à esquerda do perfil)
+        notification_btn = tk.Label(self.header, image=self.notification_img, bg=self.BOX_BG, cursor="hand2")
+        notification_btn.pack(side="right", padx=10)
+        notification_btn.bind("<Button-1>", lambda e: self._show_notification_message())
     
     def _create_link(self, parent, text, callback_key):
         """Cria um link de navegação na navbar."""
@@ -74,3 +82,9 @@ class NavbarView:
         """Chama o callback associado à chave, se existir."""
         if key in self.callback_dict and callable(self.callback_dict[key]):
             self.callback_dict[key]()
+
+    def _show_notification_message(self):
+        """Exibe mensagem de tela de notificações."""
+        messagebox.showinfo("Notificações", "Essa é a tela de notificações")
+        # Chama o callback se existir
+        self._call_callback("notification")
