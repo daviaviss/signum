@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from mvc.models.contrato_categoria_enum import CategoriaContrato
+from mvc.models.periodicidade_enum import Periodicidade
+from mvc.models.contrato_status_enum import StatusContrato
 
 class Contrato(ABC):
     """Classe base abstrata para Contrato."""
@@ -13,6 +16,7 @@ class Contrato(ABC):
         favorito: int = 0,
         contrato_id: int = None,
         user_id: int = None,
+        status: StatusContrato = StatusContrato.ATIVO,
     ):
         self.id = contrato_id
         self.user_id = user_id
@@ -23,6 +27,7 @@ class Contrato(ABC):
         self.tag = tag
         self.usuario_compartilhado = usuario_compartilhado
         self.favorito = favorito
+        self.status = status
 
     @property
     @abstractmethod
@@ -44,23 +49,9 @@ class ContratoGenerico(Contrato):
 class ContratosModel:
     """Model que gerencia contratos."""
 
-    TAGS_DISPONIVEIS = [
-        "Streaming",
-        "Software",
-        "Educação",
-        "Saúde",
-        "Fitness",
-        "Entretenimento",
-        "Produtividade",
-        "Outro",
-    ]
+    TAGS_DISPONIVEIS = [categoria.value for categoria in CategoriaContrato]
 
-    PERIODICIDADES = [
-        "Mensal",
-        "Trimestral",
-        "Semestral",
-        "Anual",
-    ]
+    PERIODICIDADES = [p.value for p in Periodicidade]
 
     def __init__(self, dao=None):
         self.dao = dao
@@ -77,6 +68,7 @@ class ContratosModel:
         tag: str,
         usuario_compartilhado: str = "",
         favorito: int = 0,
+        status: StatusContrato = StatusContrato.ATIVO,
     ):
         contrato = ContratoGenerico(
             nome=nome,
@@ -87,6 +79,7 @@ class ContratosModel:
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             user_id=user_id,
+            status=status,
         )
         if self.dao:
             self.dao.add_contrato(contrato)
@@ -110,6 +103,7 @@ class ContratosModel:
                     tag=r["tag"],
                     usuario_compartilhado=r.get("usuario_compartilhado") or "",
                     favorito=1 if r.get("favorito") else 0,
+                    status=StatusContrato(r.get("status", StatusContrato.ATIVO.value))
                 )
                 for r in rows
             ]
@@ -141,6 +135,7 @@ class ContratosModel:
         tag: str,
         usuario_compartilhado: str = "",
         favorito: int = 0,
+        status: StatusContrato = StatusContrato.ATIVO,
     ):
         contrato = ContratoGenerico(
             nome=nome,
@@ -152,6 +147,7 @@ class ContratosModel:
             favorito=favorito,
             contrato_id=contrato_id,
             user_id=user_id,
+            status=status,
         )
         if self.dao:
             self.dao.update_contrato(contrato)
