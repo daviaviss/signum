@@ -1,5 +1,5 @@
 from dao import ContratosDAO
-from mvc.models.contratos_model import ContratoGenerico
+from mvc.models.contratos_model import Contrato
 from mvc.models.periodicidade_enum import Periodicidade
 from mvc.models.contrato_categoria_enum import CategoriaContrato
 from mvc.models.contrato_status_enum import StatusContrato
@@ -28,7 +28,7 @@ class ContratosController:
         if self.user_id:
             rows = self.dao.get_contratos_by_user(self.user_id)
             contratos = [
-                ContratoGenerico(
+                Contrato(
                     contrato_id=r["id"],
                     user_id=r["user_id"],
                     nome=r["nome"],
@@ -57,7 +57,7 @@ class ContratosController:
         if not self.user_id:
             return False
         
-        contrato = ContratoGenerico(
+        contrato = Contrato(
             nome=nome,
             valor=valor,
             data_vencimento=data_vencimento,
@@ -98,7 +98,7 @@ class ContratosController:
         if not self.user_id:
             return False
         
-        contrato = ContratoGenerico(
+        contrato = Contrato(
             nome=nome,
             valor=valor,
             data_vencimento=data_vencimento,

@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
 from mvc.models.contrato_status_enum import StatusContrato
 
-class Contrato(ABC):
-    """Classe base abstrata para Contrato."""
+class Contrato:
+    """Classe concreta para Contrato (sem pagamento/login/senha)."""
     def __init__(
         self,
         nome: str,
@@ -28,18 +27,10 @@ class Contrato(ABC):
         self.status = status
 
     @property
-    @abstractmethod
     def tipo(self) -> str:
-        """Tipo do contrato (e.g., 'contrato', 'assinatura')."""
-        raise NotImplementedError
+        """Tipo do registro; por padrão, 'contrato'."""
+        return "contrato"
 
     def __repr__(self):
         return f"<Contrato id={self.id} nome={self.nome} valor={self.valor}>"
-
-
-class ContratoGenerico(Contrato):
-    """Contrato genérico concreto (sem pagamento/login/senha)."""
-    @property
-    def tipo(self) -> str:
-        return "contrato"
     
