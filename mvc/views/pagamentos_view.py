@@ -102,7 +102,6 @@ class PagamentosView:
             state="readonly"
         )
         self.forma_combo.pack(fill="x", pady=(0, 10))
-        self.forma_combo.set(FormaPagamento.DINHEIRO.value)
 
         # Data de Vencimento
         data_frame = tk.Frame(form_frame, bg=UI.BOX_BG)
@@ -412,7 +411,7 @@ class PagamentosView:
             
             # Limpa campos
             self.nome_entry.delete(0, tk.END)
-            self.forma_combo.set(FormaPagamento.DINHEIRO.value)
+            self.forma_combo.set('')  # Limpa a seleção
             self.tem_vencimento.set(False)
             self.data_entry.configure(state="disabled")
             
