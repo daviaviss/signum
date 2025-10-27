@@ -1,4 +1,5 @@
 from mvc.models.contratos_model import Contrato, ContratosModel
+from mvc.models.assinatura_categoria_enum import CategoriaAssinatura
 
 
 class Assinatura(Contrato):
@@ -19,12 +20,14 @@ class Assinatura(Contrato):
         assinatura_id: int = None,
         user_id: int = None
     ):
+        # Se tag vier como enum, usa seu value
+        tag_value = getattr(tag, "value", tag)
         super().__init__(
             nome=nome,
             valor=valor,
             data_vencimento=data_vencimento,
             periodicidade=periodicidade,
-            tag=tag,
+            tag=tag_value,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             contrato_id=assinatura_id,
@@ -44,6 +47,9 @@ class Assinatura(Contrato):
 
 class AssinaturasModel(ContratosModel):
     """Model que gerencia assinaturas - herda de ContratosModel."""
+    
+    # Sobrescreve categorias para assinaturas com enum específico
+    TAGS_DISPONIVEIS = [c.value for c in CategoriaAssinatura]
     
     def __init__(self, dao=None):
         super().__init__()
