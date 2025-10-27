@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from datetime import datetime
 from mvc import ui_constants as UI
 from mvc.views.assinaturas_view import AssinaturasView
 
@@ -162,7 +163,14 @@ class ContratosView(AssinaturasView):
                 usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
 
                 if not nome or not data or not periodicidade or not tag:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
+                    return
+
+                # Validação de formato da data (DD/MM/AAAA)
+                try:
+                    datetime.strptime(data, "%d/%m/%Y")
+                except ValueError:
+                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
                     return
 
                 self.controller.adicionar(
@@ -183,7 +191,8 @@ class ContratosView(AssinaturasView):
                 messagebox.showinfo("Sucesso", "Contrato adicionado com sucesso!")
 
             except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números.")
+                # Valor inválido
+                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
 
     def _show_detail_modal(self, contrato):
         """Mostra detalhes e permite editar um contrato (sem pagamento/login/senha)."""
@@ -370,7 +379,14 @@ class ContratosView(AssinaturasView):
                 usuario_compartilhado = entry_usuario.get().strip()
 
                 if not nome or not data or not periodicidade or not tag:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
+                    return
+
+                # Validação de formato da data (DD/MM/AAAA)
+                try:
+                    datetime.strptime(data, "%d/%m/%Y")
+                except ValueError:
+                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
                     return
 
                 if self.controller:
@@ -387,7 +403,8 @@ class ContratosView(AssinaturasView):
                     modal.destroy()
                     messagebox.showinfo("Sucesso", "Contrato atualizado com sucesso!")
             except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números.")
+                # Valor inválido na edição
+                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
 
         tk.Button(
             btn_frame,
