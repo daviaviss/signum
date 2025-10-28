@@ -8,6 +8,7 @@ from mvc.views.assinaturas_view import AssinaturasView
 from mvc.controllers.assinaturas_controller import AssinaturasController
 from mvc.views.contratos_view import ContratosView
 from mvc.controllers.contratos_controller import ContratosController
+from mvc.views.pagamentos_view import PagamentosView
 
 
 class HomeView:
@@ -63,7 +64,6 @@ class HomeView:
 
         # Botões
         def abrir_pagamentos():
-            from mvc.views.pagamentos_view import PagamentosView
             for w in self.frame.winfo_children():
                 w.destroy()
             self._render_navbar(self.frame, active="")
