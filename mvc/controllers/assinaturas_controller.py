@@ -39,7 +39,7 @@ class AssinaturasController:
         data_vencimento: str,
         valor: float,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         forma_pagamento: str,
         usuario_compartilhado: str = "",
         login: str = "",
@@ -54,7 +54,7 @@ class AssinaturasController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=tag,
+            tag=categoria,  # Map categoria back to tag for model compatibility
             forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             login=login,
@@ -84,7 +84,7 @@ class AssinaturasController:
         data_vencimento: str,
         valor: float,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         forma_pagamento: str,
         usuario_compartilhado: str = "",
         login: str = "",
@@ -102,7 +102,7 @@ class AssinaturasController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=tag,
+            tag=categoria,  # Map categoria back to tag for model compatibility
             forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             login=login,
@@ -113,8 +113,8 @@ class AssinaturasController:
         self._carregar_assinaturas()
         return True
     
-    def get_tags_disponiveis(self):
-        """Retorna lista de tags disponíveis."""
+    def get_categorias_disponiveis(self):
+        """Retorna lista de categorias disponíveis."""
         return [c.value for c in CategoriaAssinatura]
     
     def get_periodicidades(self):

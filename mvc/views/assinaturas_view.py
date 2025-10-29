@@ -115,13 +115,13 @@ class AssinaturasView:
         self.combo_periodicidade = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_periodicidade.pack(fill="x", padx=10, pady=(0, 10))
         
-        # Tag
-        tag_frame = tk.Frame(parent, bg=UI.BOX_BG)
-        tag_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
-        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
-        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
-        self.combo_tag = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
-        self.combo_tag.pack(fill="x", padx=10, pady=(0, 10))
+        # Categoria
+        categoria_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        categoria_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        self.combo_categoria = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
+        self.combo_categoria.pack(fill="x", padx=10, pady=(0, 10))
         
         # Forma de Pagamento
         pag_frame = tk.Frame(parent, bg=UI.BOX_BG)
@@ -530,14 +530,14 @@ class AssinaturasView:
         combo_periodicidade.set(assinatura.periodicidade)
         combo_periodicidade.pack(fill="x", pady=(0, 10))
         
-        tag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
-        tag_frame.pack(anchor="w", pady=(5, 0), fill="x")
-        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
-        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
-        combo_tag = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
-        combo_tag['values'] = self.combo_tag['values']
-        combo_tag.set(assinatura.tag)
-        combo_tag.pack(fill="x", pady=(0, 10))
+        categoria_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        categoria_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        combo_categoria = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_categoria['values'] = self.combo_categoria['values']
+        combo_categoria.set(assinatura.tag)
+        combo_categoria.pack(fill="x", pady=(0, 10))
         
         pag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
         pag_frame.pack(anchor="w", pady=(5, 0), fill="x")
@@ -569,14 +569,14 @@ class AssinaturasView:
             valor_str = entry_valor.get().strip()
             data = entry_data.get().strip()
             periodicidade = combo_periodicidade.get()
-            tag = combo_tag.get()
+            categoria = combo_categoria.get()
             pagamento = combo_pagamento.get()
             usuario_compartilhado = entry_usuario.get().strip()
             login = entry_login.get().strip()
             senha = entry_senha.get().strip()
             
             # Validate required fields BEFORE parsing
-            if not nome or not valor_str or not data or not periodicidade or not tag or not pagamento:
+            if not nome or not valor_str or not data or not periodicidade or not categoria or not pagamento:
                 messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
                 return
             
@@ -590,7 +590,7 @@ class AssinaturasView:
                         data_vencimento=data,
                         valor=valor,
                         periodicidade=periodicidade,
-                        tag=tag,
+                        categoria=categoria,
                         forma_pagamento=pagamento,
                         usuario_compartilhado=usuario_compartilhado,
                         login=login,
@@ -639,14 +639,14 @@ class AssinaturasView:
             valor_str = self.entry_valor.get().strip()
             data = self.entry_data.get().strip()
             periodicidade = self.combo_periodicidade.get()
-            tag = self.combo_tag.get()
+            categoria = self.combo_categoria.get()
             pagamento = self.combo_pagamento.get()
             usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
             login = self.entry_login.get().strip()
             senha = self.entry_senha.get().strip()
             
             # Validate required fields BEFORE parsing
-            if not nome or not valor_str or not data or not periodicidade or not tag or not pagamento:
+            if not nome or not valor_str or not data or not periodicidade or not categoria or not pagamento:
                 messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
                 return
             
@@ -658,7 +658,7 @@ class AssinaturasView:
                     data_vencimento=data,
                     valor=valor,
                     periodicidade=periodicidade,
-                    tag=tag,
+                    categoria=categoria,
                     forma_pagamento=pagamento,
                     usuario_compartilhado=usuario_compartilhado,
                     login=login,
@@ -696,17 +696,17 @@ class AssinaturasView:
                     self.controller.remover(assinatura_id)
                     messagebox.showinfo("Sucesso", "Assinatura removida com sucesso!")
     
-    def set_combo_values(self, periodicidades, tags, formas_pagamento):
+    def set_combo_values(self, periodicidades, categorias, formas_pagamento):
         """Define os valores dos comboboxes."""
         self.combo_periodicidade['values'] = periodicidades
-        self.combo_tag['values'] = tags
+        self.combo_categoria['values'] = categorias
         self.combo_pagamento['values'] = formas_pagamento
         
         # Selecionar primeiro item por padrão
         if periodicidades:
             self.combo_periodicidade.current(0)
-        if tags:
-            self.combo_tag.current(0)
+        if categorias:
+            self.combo_categoria.current(0)
         if formas_pagamento:
             self.combo_pagamento.current(0)
     
