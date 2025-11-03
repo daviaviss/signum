@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+from typing import Tuple, Optional
 from tkcalendar import DateEntry
 from mvc import ui_constants as UI
 from mvc.models.forma_pagamento_enum import FormaPagamento
@@ -200,29 +201,33 @@ class PagamentosView:
         self.tree.bind("<Double-1>", self._on_item_double_click)
 
     def _on_item_double_click(self, event):
-        """Abre a janela de edição ao dar duplo clique."""
-        selection = self.tree.selection()
-        if not selection:
+        """Trata o evento de duplo clique em um item da lista."""
+        item = self.tree.selection()
+        if not item:
             return
-
-        item = selection[0]
-        values = self.tree.item(item)['values']
         
-        if not values:
-            return
-
         try:
-            pagamento_id = int(values[0])  # O ID está na primeira posição dos valores
+            values = self.tree.item(item[0]).get('values', [])
+            if not values or len(values) < 1:
+                self._mostrar_erro("Item inválido selecionado")
+                return
+                
+            pagamento_id = values[0]
+            if not pagamento_id:
+                self._mostrar_erro("ID do pagamento não encontrado")
+                return
+                
             self._abrir_janela_edicao(pagamento_id)
-        except (IndexError, ValueError, TypeError) as e:
-            messagebox.showerror("Erro", f"Não foi possível obter o ID do pagamento: {str(e)}")
+        except (IndexError, TypeError) as e:
+            self._mostrar_erro(f"Erro ao obter dados do item: {str(e)}")
 
     def _abrir_janela_edicao(self, pagamento_id):
-        """Abre janela para edição/exclusão de um pagamento."""
+        """Abre janela para editar ou excluir um pagamento."""
         pagamentos = self.controller.listar_pagamentos()
-        pagamento = next((p for p in pagamentos if getattr(p, 'id') == pagamento_id), None)
+        pagamento = next((p for p in pagamentos if getattr(p, 'id', None) == pagamento_id), None)
         
         if not pagamento:
+            self._mostrar_erro("Pagamento não encontrado!")
             return
 
         edit_window = tk.Toplevel(self.parent)
@@ -334,11 +339,34 @@ class PagamentosView:
         btn_frame = tk.Frame(main_frame, bg=UI.BOX_BG)
         btn_frame.pack(fill="x", pady=(20, 0))
 
-        def excluir():
-            if messagebox.askyesno("Confirmar", "Deseja realmente excluir este método de pagamento?"):
-                self.controller.excluir_pagamento(pagamento_id)
+        def salvar_edicao():
+            nome = nome_entry.get().strip()
+            forma = forma_combo.get()
+            
+            valido, data = self._validar_formulario(nome, forma, data_entry, tem_vencimento)
+            if not valido:
+                return
+            
+            try:
+                self.controller.atualizar_pagamento(
+                    pagamento_id=pagamento_id,
+                    nome=nome,
+                    vencimento=data,
+                    forma_pagamento=FormaPagamento(forma)
+                )
                 self._load_data()
                 edit_window.destroy()
+            except Exception as e:
+                self._mostrar_erro(str(e))
+
+        def excluir():
+            if messagebox.askyesno("Confirmar", "Deseja realmente excluir este método de pagamento?"):
+                try:
+                    self.controller.excluir_pagamento(pagamento_id)
+                    self._load_data()
+                    edit_window.destroy()
+                except Exception as e:
+                    self._mostrar_erro(str(e))
 
         tk.Button(
             btn_frame,
@@ -352,19 +380,6 @@ class PagamentosView:
             command=excluir
         ).pack(side="left", padx=5)
 
-        def salvar():
-            try:
-                self.controller.atualizar_pagamento(
-                    pagamento_id=pagamento_id,
-                    nome=nome_entry.get().strip(),
-                    vencimento=data_entry.get_date() if tem_vencimento.get() else None,
-                    forma_pagamento=FormaPagamento(forma_combo.get())
-                )
-                self._load_data()
-                edit_window.destroy()
-            except Exception as e:
-                messagebox.showerror("Erro", str(e))
-
         tk.Button(
             btn_frame,
             text="Salvar",
@@ -374,7 +389,7 @@ class PagamentosView:
             activebackground=UI.BTN_ACTIVE_BG,
             activeforeground=UI.BTN_ACTIVE_FG,
             relief="flat",
-            command=salvar
+            command=salvar_edicao
         ).pack(side="right", padx=5)
 
         # Bind do duplo clique
@@ -387,22 +402,42 @@ class PagamentosView:
         else:
             self.data_entry.configure(state="disabled")
 
+    def _validar_formulario(self, nome: str, forma: str, data_entry, tem_vencimento):
+        """Valida os campos obrigatórios do formulário e resolve a data opcional.
+        
+        Args:
+            nome: Nome do método de pagamento
+            forma: Forma de pagamento selecionada
+            data_entry: Widget DateEntry para obter a data
+            tem_vencimento: BooleanVar que indica se há data de vencimento
+            
+        Returns:
+            (True, date|None) se válido, (False, None) caso contrário
+        """
+        if not nome:
+            self._mostrar_erro("Nome é obrigatório!")
+            return False, None
+
+        if not forma:
+            self._mostrar_erro("Forma de pagamento é obrigatória!")
+            return False, None
+        
+        # ÚNICO validador/definição necessária para a data:
+        data = data_entry.get_date() if tem_vencimento.get() else None
+        
+        return True, data
+
     def _adicionar_pagamento(self):
         """Adiciona um novo pagamento."""
         nome = self.nome_entry.get().strip()
         forma = self.forma_combo.get()
-        data = self.data_entry.get_date() if self.tem_vencimento.get() else None
-
-        if not nome:
-            messagebox.showerror("Erro", "Nome é obrigatório!")
-            return
-
-        if not forma:
-            messagebox.showerror("Erro", "Forma de pagamento é obrigatória!")
+       
+        
+        valido, data = self._validar_formulario(nome, forma, self.data_entry, self.tem_vencimento)
+        if not valido:
             return
 
         try:
-            # Adiciona ao banco
             self.controller.criar_pagamento(
                 nome=nome,
                 vencimento=data,
@@ -411,7 +446,7 @@ class PagamentosView:
             
             # Limpa campos
             self.nome_entry.delete(0, tk.END)
-            self.forma_combo.set('')  # Limpa a seleção
+            self.forma_combo.set('')
             self.tem_vencimento.set(False)
             self.data_entry.configure(state="disabled")
             
@@ -419,7 +454,7 @@ class PagamentosView:
             self._load_data()
             
         except Exception as e:
-            messagebox.showerror("Erro", str(e))
+            self._mostrar_erro(str(e))
 
     def _load_data(self):
         """Carrega os dados na TreeView."""
@@ -447,4 +482,8 @@ class PagamentosView:
                 self.tree.insert("", "end", values=values)
             except Exception as e:
                 print(f"Erro ao inserir pagamento na TreeView: {str(e)}")
+    
+    def _mostrar_erro(self, mensagem: str):
+        """Método centralizado para exibir mensagens de erro."""
+        messagebox.showerror("Erro", mensagem)
 
