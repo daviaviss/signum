@@ -38,7 +38,7 @@ class ContratosController:
                     tag=r["tag"],
                     usuario_compartilhado=r.get("usuario_compartilhado") or "",
                     favorito=1 if r.get("favorito") else 0,
-                    status=StatusContrato(r.get("status", StatusContrato.ATIVO.value))
+                    status=StatusContrato(r.get("status", "Ativo"))  # Garante que sempre tem status
                 )
                 for r in rows
             ]
@@ -94,9 +94,14 @@ class ContratosController:
         usuario_compartilhado: str = "",
         favorito: int = 0,
     ):
-        """Edita um contrato existente."""
+        """Edita um contrato existente (mantém o status atual)."""
         if not self.user_id:
             return False
+        
+        # Busca o contrato atual para manter o status
+        rows = self.dao.get_contratos_by_user(self.user_id)
+        contrato_atual = next((r for r in rows if r["id"] == contrato_id), None)
+        status_atual = StatusContrato(contrato_atual.get("status", "Ativo")) if contrato_atual else StatusContrato.ATIVO
         
         contrato = Contrato(
             nome=nome,
@@ -108,7 +113,7 @@ class ContratosController:
             favorito=favorito,
             contrato_id=contrato_id,
             user_id=self.user_id,
-            status=StatusContrato.ATIVO,
+            status=status_atual,  # Mantém o status atual
         )
         self.dao.update_contrato(contrato)
         self._carregar_contratos()

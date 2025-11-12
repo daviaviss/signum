@@ -335,8 +335,13 @@ class AssinaturasView:
         
         assinatura_id = values[0]  # ID is first value
         
-        # Encontra a assinatura completa
-        assinatura = next((a for a in self.assinaturas_data if a.id == assinatura_id), None)
+        # VERIFICA E ATUALIZA O STATUS ANTES DE EXIBIR
+        if self.controller:
+            assinatura = self.controller.verificar_e_atualizar_status(assinatura_id)
+        else:
+            # Fallback: encontra a assinatura normalmente
+            assinatura = next((a for a in self.assinaturas_data if a.id == assinatura_id), None)
+        
         if assinatura:
             self._show_detail_modal(assinatura)
     
@@ -344,7 +349,7 @@ class AssinaturasView:
         """Mostra modal com todos os detalhes da assinatura."""
         modal = tk.Toplevel(self.parent)
         modal.title("Detalhes da Assinatura")
-        modal.geometry("500x650")
+        modal.geometry("500x700")
         modal.configure(bg=UI.BG_COLOR)
         modal.transient(self.parent)
         modal.grab_set()
@@ -352,7 +357,7 @@ class AssinaturasView:
         # Centralizar modal
         modal.update_idletasks()
         x = (modal.winfo_screenwidth() // 2) - (500 // 2)
-        y = (modal.winfo_screenheight() // 2) - (650 // 2)
+        y = (modal.winfo_screenheight() // 2) - (700 // 2)
         modal.geometry(f"+{x}+{y}")
         
         # Container com scroll
@@ -391,6 +396,37 @@ class AssinaturasView:
             font=("Inter", 20, "bold"),
             bg=UI.BOX_BG,
             fg="#2e3047"
+        ).pack(side="left")
+        
+        # Status com bolinha colorida
+        status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        status_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(
+            status_frame,
+            text="Status:",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047",
+            anchor="w"
+        ).pack(side="left", padx=(0, 10))
+        
+        # Determina cor da bolinha baseado no status
+        status_value = assinatura.status.value if hasattr(assinatura.status, 'value') else str(assinatura.status)
+        status_color = "#4CAF50" if status_value == "Ativo" else "#f44336"
+        
+        # Canvas para desenhar a bolinha
+        status_canvas = tk.Canvas(status_frame, width=16, height=16, bg=UI.BOX_BG, highlightthickness=0)
+        status_canvas.create_oval(2, 2, 14, 14, fill=status_color, outline=status_color)
+        status_canvas.pack(side="left", padx=(0, 5))
+        
+        tk.Label(
+            status_frame,
+            text=status_value,
+            font=("Inter", 12),
+            bg=UI.BOX_BG,
+            fg="#555",
+            anchor="w"
         ).pack(side="left")
         
         # Detalhes
@@ -564,44 +600,45 @@ class AssinaturasView:
         entry_senha.pack(fill="x", pady=(0, 10))
         
         def salvar_edicao():
-            # Get all values first
-            nome = entry_nome.get().strip()
-            valor_str = entry_valor.get().strip()
-            data = entry_data.get().strip()
-            periodicidade = combo_periodicidade.get()
-            categoria = combo_categoria.get()
-            pagamento = combo_pagamento.get()
-            usuario_compartilhado = entry_usuario.get().strip()
-            login = entry_login.get().strip()
-            senha = entry_senha.get().strip()
+            # Coleta dados do modal
+            data = {
+                'nome': entry_nome.get().strip(),
+                'valor': entry_valor.get().strip().replace(',', '.'),
+                'data_vencimento': entry_data.get().strip(),
+                'periodicidade': combo_periodicidade.get(),
+                'categoria': combo_categoria.get(),
+                'forma_pagamento': combo_pagamento.get(),
+                'usuario_compartilhado': entry_usuario.get().strip(),
+                'login': entry_login.get().strip(),
+                'senha': entry_senha.get().strip()
+            }
             
-            # Validate required fields BEFORE parsing
-            if not nome or not valor_str or not data or not periodicidade or not categoria or not pagamento:
-                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+            # Valida os dados (passa assinatura_id para permitir mesmo nome na edição)
+            validation = self.controller.validate_form_data(data, assinatura_id=assinatura.id)
+            
+            if not validation['success']:
+                messagebox.showerror("Erro de Validação", validation['message'])
                 return
             
-            try:
-                valor = float(valor_str.replace(",", "."))
-                
-                if self.controller:
-                    self.controller.editar(
-                        assinatura_id=assinatura.id,
-                        nome=nome,
-                        data_vencimento=data,
-                        valor=valor,
-                        periodicidade=periodicidade,
-                        categoria=categoria,
-                        forma_pagamento=pagamento,
-                        usuario_compartilhado=usuario_compartilhado,
-                        login=login,
-                        senha=senha,
-                        favorito=assinatura.favorito
-                    )
-                    modal.destroy()
-                    messagebox.showinfo("Sucesso", "Assinatura atualizada com sucesso!")
-                
-            except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números nos campos numéricos.")
+            validated_data = validation['data']
+            
+            if self.controller:
+                self.controller.editar(
+                    assinatura_id=assinatura.id,
+                    nome=validated_data['nome'],
+                    data_vencimento=validated_data['data_vencimento'],
+                    valor=validated_data['valor'],
+                    periodicidade=validated_data['periodicidade'],
+                    categoria=validated_data['categoria'],
+                    forma_pagamento=validated_data['forma_pagamento'],
+                    usuario_compartilhado=validated_data['usuario_compartilhado'],
+                    login=validated_data['login'],
+                    senha=validated_data['senha'],
+                    favorito=assinatura.favorito,
+                    status=assinatura.status
+                )
+                modal.destroy()
+                messagebox.showinfo("Sucesso", "Assinatura atualizada com sucesso!")
         
         # Botões
         btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
@@ -634,49 +671,45 @@ class AssinaturasView:
     def _on_adicionar(self):
         """Callback quando o botão adicionar é clicado."""
         if self.controller:
-            # Get all values first
-            nome = self.entry_nome.get().strip()
-            valor_str = self.entry_valor.get().strip()
-            data = self.entry_data.get().strip()
-            periodicidade = self.combo_periodicidade.get()
-            categoria = self.combo_categoria.get()
-            pagamento = self.combo_pagamento.get()
-            usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
-            login = self.entry_login.get().strip()
-            senha = self.entry_senha.get().strip()
+            # Obtém dados do formulário via controller
+            data = self.controller.get_form_data()
             
-            # Validate required fields BEFORE parsing
-            if not nome or not valor_str or not data or not periodicidade or not categoria or not pagamento:
-                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios!")
+            # Valida os dados (None para nova assinatura)
+            validation = self.controller.validate_form_data(data, assinatura_id=None)
+            
+            if not validation['success']:
+                # Mensagens específicas por tipo de erro
+                if validation['error_code'] == 'REQUIRED_FIELDS':
+                    messagebox.showwarning("Campos Obrigatórios", validation['message'])
+                elif validation['error_code'] == 'INVALID_NUMBER':
+                    messagebox.showerror("Valor Inválido", validation['message'])
+                elif validation['error_code'] == 'INVALID_VALUE':
+                    messagebox.showerror("Valor Inválido", validation['message'])
+                elif validation['error_code'] == 'INVALID_DATE':
+                    messagebox.showerror("Data Inválida", validation['message'])
+                elif validation['error_code'] == 'DUPLICATE_NAME':
+                    messagebox.showerror("Nome Duplicado", validation['message'])
+                else:
+                    messagebox.showerror("Erro", validation['message'])
                 return
             
-            try:
-                valor = float(valor_str.replace(",", "."))
-                
-                self.controller.adicionar(
-                    nome=nome,
-                    data_vencimento=data,
-                    valor=valor,
-                    periodicidade=periodicidade,
-                    categoria=categoria,
-                    forma_pagamento=pagamento,
-                    usuario_compartilhado=usuario_compartilhado,
-                    login=login,
-                    senha=senha
-                )
-                
-                # Limpar campos
-                self.entry_nome.delete(0, tk.END)
-                self.entry_valor.delete(0, tk.END)
-                self.entry_data.delete(0, tk.END)
-                self.entry_usuario_compartilhado.delete(0, tk.END)
-                self.entry_login.delete(0, tk.END)
-                self.entry_senha.delete(0, tk.END)
-                
-                messagebox.showinfo("Sucesso", "Assinatura adicionada com sucesso!")
-                
-            except ValueError:
-                messagebox.showerror("Erro", "Valor inválido! Use apenas números nos campos numéricos.")
+            # Adiciona assinatura
+            validated_data = validation['data']
+            self.controller.adicionar(
+                nome=validated_data['nome'],
+                data_vencimento=validated_data['data_vencimento'],
+                valor=validated_data['valor'],
+                periodicidade=validated_data['periodicidade'],
+                categoria=validated_data['categoria'],
+                forma_pagamento=validated_data['forma_pagamento'],
+                usuario_compartilhado=validated_data['usuario_compartilhado'],
+                login=validated_data['login'],
+                senha=validated_data['senha']
+            )
+            
+            # Limpa o formulário
+            self.controller.clear_form()
+            messagebox.showinfo("Sucesso", "Assinatura adicionada com sucesso!")
     
     def _on_remover(self):
         """Callback quando o botão remover é clicado."""
@@ -693,8 +726,12 @@ class AssinaturasView:
             if self.controller:
                 confirm = messagebox.askyesno("Confirmar", "Deseja realmente remover esta assinatura?")
                 if confirm:
-                    self.controller.remover(assinatura_id)
-                    messagebox.showinfo("Sucesso", "Assinatura removida com sucesso!")
+                    resultado = self.controller.remover(assinatura_id)
+                    
+                    if resultado['success']:
+                        messagebox.showinfo("Sucesso", resultado['message'])
+                    else:
+                        messagebox.showerror("Não é possível remover", resultado['message'])
     
     def set_combo_values(self, periodicidades, categorias, formas_pagamento):
         """Define os valores dos comboboxes."""

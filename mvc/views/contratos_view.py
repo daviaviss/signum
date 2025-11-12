@@ -194,20 +194,120 @@ class ContratosView(AssinaturasView):
                 # Valor inválido
                 messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
 
+    def _create_treeview(self, parent):
+        """Cria o treeview para exibir os contratos."""
+        # Frame para o treeview e scrollbars
+        tree_container = tk.Frame(parent, bg=UI.BG_COLOR)
+        tree_container.pack(fill="both", expand=True)
+
+        # Scrollbars
+        scrollbar_y = ttk.Scrollbar(tree_container, orient="vertical")
+        scrollbar_x = ttk.Scrollbar(tree_container, orient="horizontal")
+
+        # Treeview (ID hidden but stored) - ADICIONADO Status
+        columns = ("id", "fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Tag", "Status")
+        self.tree = ttk.Treeview(
+            tree_container,
+            columns=columns,
+            show="headings",
+            yscrollcommand=scrollbar_y.set,
+            xscrollcommand=scrollbar_x.set,
+            height=15,
+            displaycolumns=("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Tag", "Status")
+        )
+
+        scrollbar_y.config(command=self.tree.yview)
+        scrollbar_x.config(command=self.tree.xview)
+
+        # Posicionar scrollbars e treeview
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar_y.grid(row=0, column=1, sticky="ns")
+        scrollbar_x.grid(row=1, column=0, sticky="ew")
+
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
+
+        # Definir colunas com comando de ordenação
+        self.tree.heading("fav", text="★", command=lambda: self._sort_column("fav"))
+        self.tree.heading("Nome", text="Nome", command=lambda: self._sort_column("Nome"))
+        self.tree.heading("Valor", text="Valor", command=lambda: self._sort_column("Valor"))
+        self.tree.heading("Vencimento", text="Vencimento", command=lambda: self._sort_column("Vencimento"))
+        self.tree.heading("Periodicidade", text="Periodicidade", command=lambda: self._sort_column("Periodicidade"))
+        self.tree.heading("Tag", text="Tag", command=lambda: self._sort_column("Tag"))
+        self.tree.heading("Status", text="Status", command=lambda: self._sort_column("Status"))
+
+        for col in ("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Tag", "Status"):
+            self.sort_reverse[col] = False
+
+        # Larguras das colunas
+        self.tree.column("fav", width=40, minwidth=40, anchor="center")
+        self.tree.column("Nome", width=120, minwidth=100)
+        self.tree.column("Valor", width=100, minwidth=80)
+        self.tree.column("Vencimento", width=100, minwidth=80)
+        self.tree.column("Periodicidade", width=100, minwidth=90)
+        self.tree.column("Tag", width=100, minwidth=90)
+        self.tree.column("Status", width=80, minwidth=70, anchor="center")
+
+    def _refresh_treeview(self):
+        """Atualiza o treeview com os dados ordenados."""
+        # Limpa o treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Re-adiciona os contratos
+        for contrato in self.contratos_data:
+            fav_symbol = "★" if contrato.favorito == 1 else "☆"
+            status_value = contrato.status.value if hasattr(contrato.status, 'value') else contrato.status
+
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    contrato.id,
+                    fav_symbol,
+                    contrato.nome,
+                    f"R$ {contrato.valor:.2f}",
+                    contrato.data_vencimento,
+                    contrato.periodicidade,
+                    contrato.tag,
+                    status_value
+                )
+            )
+
     def _show_detail_modal(self, contrato):
-        """Mostra detalhes e permite editar um contrato (sem pagamento/login/senha)."""
+        """Mostra modal com todos os detalhes do contrato."""
         modal = tk.Toplevel(self.parent)
         modal.title("Detalhes do Contrato")
-        modal.configure(bg=UI.BOX_BG)
-        modal.geometry("600x500")
+        modal.geometry("500x600")
+        modal.configure(bg=UI.BG_COLOR)
+        modal.transient(self.parent)
+        modal.grab_set()
 
-        # Conteúdo
-        content_frame = tk.Frame(modal, bg=UI.BOX_BG)
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Centralizar modal
+        modal.update_idletasks()
+        x = (modal.winfo_screenwidth() // 2) - (500 // 2)
+        y = (modal.winfo_screenheight() // 2) - (600 // 2)
+        modal.geometry(f"+{x}+{y}")
 
-        # Cabeçalho com estrela e nome
+        # Container com scroll
+        canvas = tk.Canvas(modal, bg=UI.BOX_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(modal, orient="vertical", command=canvas.yview)
+        content_frame = tk.Frame(canvas, bg=UI.BOX_BG, padx=30, pady=30)
+
+        content_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Título com favorito
         title_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
-        title_frame.pack(fill="x", pady=(0, 10))
+        title_frame.pack(pady=(0, 10))
 
         fav_symbol = "★" if contrato.favorito == 1 else "☆"
         tk.Label(
@@ -227,13 +327,48 @@ class ContratosView(AssinaturasView):
             fg="#2e3047"
         ).pack(side="left")
 
+        # Status com bolinha colorida
+        status_value = contrato.status.value if hasattr(contrato.status, 'value') else contrato.status
+        status_color = "#4CAF50" if status_value == "Ativo" else "#F44336"
+
+        status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        status_frame.pack(fill="x", pady=10)
+
+        tk.Label(
+            status_frame,
+            text="Status:",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047",
+            anchor="w"
+        ).pack(side="left", padx=(0, 10))
+
+        # Bolinha colorida
+        tk.Label(
+            status_frame,
+            text="●",
+            font=("Inter", 16),
+            bg=UI.BOX_BG,
+            fg=status_color,
+            anchor="w"
+        ).pack(side="left", padx=(0, 5))
+
+        tk.Label(
+            status_frame,
+            text=status_value,
+            font=("Inter", 12),
+            bg=UI.BOX_BG,
+            fg="#555",
+            anchor="w"
+        ).pack(side="left")
+
         # Detalhes
         details = [
             ("Nome:", contrato.nome),
             ("Valor:", f"R$ {contrato.valor:.2f}"),
             ("Data de Vencimento:", contrato.data_vencimento),
             ("Periodicidade:", contrato.periodicidade),
-            ("Categoria:", contrato.tag),
+            ("Tag:", contrato.tag),
             ("Compartilhado com:", contrato.usuario_compartilhado or "Ninguém"),
         ]
 
@@ -257,21 +392,14 @@ class ContratosView(AssinaturasView):
                 bg=UI.BOX_BG,
                 fg="#555",
                 anchor="w"
-            ).pack(side="left")
+            ).pack(side="left", fill="x", expand=True)
 
-        # Botões de ação
-        btns = tk.Frame(content_frame, bg=UI.BOX_BG)
-        btns.pack(fill="x", pady=10)
-
-        def fechar():
-            modal.destroy()
-
-        def editar():
-            modal.destroy()
-            self._open_edit_modal(contrato)
+        # Botões
+        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        btn_frame.pack(pady=(30, 0), fill="x")
 
         tk.Button(
-            btns,
+            btn_frame,
             text="Editar",
             font=UI.FONT_BUTTON,
             bg="#4CAF50",
@@ -279,11 +407,11 @@ class ContratosView(AssinaturasView):
             activebackground="#45a049",
             activeforeground="#ffffff",
             relief="flat",
-            command=editar
+            command=lambda: [modal.destroy(), self._show_edit_modal(contrato)]
         ).pack(side="left", fill="x", expand=True, padx=(0, 5))
 
         tk.Button(
-            btns,
+            btn_frame,
             text="Fechar",
             font=UI.FONT_BUTTON,
             bg=UI.BTN_BG,
@@ -291,7 +419,7 @@ class ContratosView(AssinaturasView):
             activebackground=UI.BTN_ACTIVE_BG,
             activeforeground=UI.BTN_ACTIVE_FG,
             relief="flat",
-            command=fechar
+            command=modal.destroy
         ).pack(side="left", fill="x", expand=True, padx=(5, 0))
 
     def _open_edit_modal(self, contrato):
@@ -361,6 +489,34 @@ class ContratosView(AssinaturasView):
         entry_usuario = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         entry_usuario.insert(0, contrato.usuario_compartilhado or "")
         entry_usuario.pack(fill="x", pady=(0, 10))
+
+        # Status (somente visualização)
+        tk.Label(content_frame, text="Status:", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
+
+        status_display_frame = tk.Frame(content_frame, bg=UI.ENTRY_BG, relief="sunken", bd=1)
+        status_display_frame.pack(fill="x", pady=(0, 10))
+
+        status_value = contrato.status.value if hasattr(contrato.status, 'value') else contrato.status
+
+        # Define cor baseada no status
+        status_colors = {
+            "Ativo": "#4CAF50",
+            "Pausado": "#FF9800",
+            "Encerrado": "#F44336"
+        }
+        status_color = status_colors.get(status_value, "#757575")
+
+        status_label = tk.Label(
+            status_display_frame,
+            text=status_value,
+            font=("Inter", 11),
+            bg=UI.ENTRY_BG,
+            fg=status_color,
+            anchor="w",
+            padx=5,
+            pady=5
+        )
+        status_label.pack(fill="both", expand=True)
 
         # Botões
         btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)

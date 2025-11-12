@@ -252,6 +252,7 @@ class AssinaturasDAO:
             login TEXT,
             senha TEXT,
             favorito INTEGER DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'Ativo',
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
         """
@@ -260,6 +261,7 @@ class AssinaturasDAO:
         
         # Ensure favorito column exists in existing databases
         self._ensure_favorito_column()
+        self._ensure_status_column()
     
     def _ensure_favorito_column(self):
         """Adiciona coluna favorito se não existir."""
@@ -271,13 +273,23 @@ class AssinaturasDAO:
             )
             self.conn.commit()
     
+    def _ensure_status_column(self):
+        """Adiciona coluna status se não existir."""
+        cur = self.conn.execute("PRAGMA table_info(assinaturas)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "status" not in cols:
+            self.conn.execute(
+                "ALTER TABLE assinaturas ADD COLUMN status TEXT NOT NULL DEFAULT 'Ativo'"
+            )
+            self.conn.commit()
+    
     def add_assinatura(self, assinatura):
         """Adiciona uma nova assinatura ao banco."""
         query = """
             INSERT INTO assinaturas 
             (user_id, nome, data_vencimento, valor, periodicidade, tag, 
-             forma_pagamento, usuario_compartilhado, login, senha, favorito)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             forma_pagamento, usuario_compartilhado, login, senha, favorito, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         cursor = self.conn.execute(
             query,
@@ -292,7 +304,8 @@ class AssinaturasDAO:
                 assinatura.usuario_compartilhado,
                 assinatura.login,
                 assinatura.senha,
-                assinatura.favorito
+                assinatura.favorito,
+                assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo'
             )
         )
         self.conn.commit()
@@ -304,7 +317,7 @@ class AssinaturasDAO:
         cursor = self.conn.execute(
             """
             SELECT id, user_id, nome, data_vencimento, valor, periodicidade, 
-                   tag, forma_pagamento, usuario_compartilhado, login, senha, favorito
+                   tag, forma_pagamento, usuario_compartilhado, login, senha, favorito, status
             FROM assinaturas 
             WHERE user_id = ?
             ORDER BY favorito DESC, data_vencimento
@@ -326,7 +339,8 @@ class AssinaturasDAO:
                 senha=row[10],
                 favorito=row[11],
                 assinatura_id=row[0],
-                user_id=row[1]
+                user_id=row[1],
+                status=row[12] if len(row) > 12 else 'Ativo'
             )
             assinaturas.append(assinatura)
         
@@ -362,7 +376,7 @@ class AssinaturasDAO:
             UPDATE assinaturas
             SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?,
                 tag = ?, forma_pagamento = ?, usuario_compartilhado = ?,
-                login = ?, senha = ?, favorito = ?
+                login = ?, senha = ?, favorito = ?, status = ?
             WHERE id = ?
         """
         self.conn.execute(
@@ -378,6 +392,7 @@ class AssinaturasDAO:
                 assinatura.login,
                 assinatura.senha,
                 assinatura.favorito,
+                assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo',
                 assinatura.id
             )
         )
