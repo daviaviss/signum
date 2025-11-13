@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime
+from datetime import datetime, date
 from typing import Tuple, Optional
 from tkcalendar import DateEntry
 from mvc import ui_constants as UI
@@ -342,8 +342,8 @@ class PagamentosView:
         def salvar_edicao():
             nome = nome_entry.get().strip()
             forma = forma_combo.get()
-            
-            valido, data = self._validar_formulario(nome, forma, data_entry, tem_vencimento)
+
+            valido, data = self._validar_formulario(nome, forma, data_entry, tem_vencimento, pagamento_id)
             if not valido:
                 return
             
@@ -402,37 +402,60 @@ class PagamentosView:
         else:
             self.data_entry.configure(state="disabled")
 
-    def _validar_formulario(self, nome: str, forma: str, data_entry, tem_vencimento):
+    def _validar_formulario(self, nome: str, forma: str, data_entry, tem_vencimento, pagamento_id: Optional[int] = None) -> Tuple[bool, Optional[date]]:
         """Valida os campos obrigatórios do formulário e resolve a data opcional.
-        
+
         Args:
             nome: Nome do método de pagamento
             forma: Forma de pagamento selecionada
             data_entry: Widget DateEntry para obter a data
             tem_vencimento: BooleanVar que indica se há data de vencimento
-            
+            pagamento_id: id do pagamento (opcional, usado para editar — ignora o próprio registro)
+
         Returns:
             (True, date|None) se válido, (False, None) caso contrário
         """
         if not nome:
             self._mostrar_erro("Nome é obrigatório!")
             return False, None
+        
+        # Verifica nome duplicado (ignora o próprio registro quando editar)
+        if self._nome_existe(nome, pagamento_id):
+            self._mostrar_erro("Já existe um método de pagamento com esse nome.")
+            return False, None
 
         if not forma:
             self._mostrar_erro("Forma de pagamento é obrigatória!")
             return False, None
-        
+
+
         # ÚNICO validador/definição necessária para a data:
         data = data_entry.get_date() if tem_vencimento.get() else None
-        
+
         return True, data
+
+    def _nome_existe(self, nome: str, ignore_id: Optional[int] = None) -> bool:
+        """Verifica se já existe um pagamento com o mesmo nome (case-insensitive).
+           Se ignore_id for fornecido, ignora o registro com esse id (útil na edição).
+        """
+        nome_clean = nome.strip().lower()
+        try:
+            for p in self.controller.listar_pagamentos():
+                pid = getattr(p, "id", None)
+                if ignore_id is not None and pid == ignore_id:
+                    continue
+                if getattr(p, "nome", "").strip().lower() == nome_clean:
+                    return True
+        except Exception:
+            # Em caso de erro ao listar, não considerar como duplicado
+            pass
+        return False
 
     def _adicionar_pagamento(self):
         """Adiciona um novo pagamento."""
         nome = self.nome_entry.get().strip()
         forma = self.forma_combo.get()
-       
-        
+
         valido, data = self._validar_formulario(nome, forma, self.data_entry, self.tem_vencimento)
         if not valido:
             return
