@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime
-from typing import Tuple, Optional
 from tkcalendar import DateEntry
 from mvc import ui_constants as UI
 from mvc.models.forma_pagamento_enum import FormaPagamento

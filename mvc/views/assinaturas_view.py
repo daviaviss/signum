@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from mvc import ui_constants as UI
 
 
@@ -222,6 +222,48 @@ class AssinaturasView:
         btn_frame = tk.Frame(parent, bg=UI.BG_COLOR)
         btn_frame.pack(fill="x", pady=10)
         
+        # Frame para exibir o total
+        total_frame = tk.Frame(parent, bg=UI.BOX_BG, relief="groove", bd=2)
+        total_frame.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(
+            total_frame,
+            text="Total de Assinaturas:",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047"
+        ).pack(side="left", padx=15, pady=10)
+        
+        self.label_total = tk.Label(
+            total_frame,
+            text="R$ 0,00",
+            font=("Inter", 14, "bold"),
+            bg=UI.BOX_BG,
+            fg="#4CAF50"
+        )
+        self.label_total.pack(side="right", padx=15, pady=10)
+        
+        # Frame para exibir a diferença (Meta - Total)
+        diferenca_frame = tk.Frame(parent, bg=UI.BOX_BG, relief="groove", bd=2)
+        diferenca_frame.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(
+            diferenca_frame,
+            text="Disponível (Meta - Total):",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047"
+        ).pack(side="left", padx=15, pady=10)
+        
+        self.label_diferenca = tk.Label(
+            diferenca_frame,
+            text="R$ 0,00",
+            font=("Inter", 14, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2196F3"
+        )
+        self.label_diferenca.pack(side="right", padx=15, pady=10)
+        
         self.btn_remover = tk.Button(
             btn_frame,
             text="Remover Selecionada",
@@ -308,6 +350,7 @@ class AssinaturasView:
         # Re-adiciona as assinaturas
         for assinatura in self.assinaturas_data:
             fav_symbol = "★" if assinatura.favorito == 1 else "☆"
+            
             self.tree.insert(
                 "",
                 "end",
@@ -321,6 +364,30 @@ class AssinaturasView:
                     assinatura.tag
                 )
             )
+        
+        # Calcula e atualiza o total usando o controller
+        if self.controller:
+            total = self.controller.calcular_total_assinaturas(self.assinaturas_data)
+            self._atualizar_total(total)
+            self._atualizar_diferenca()
+    
+    def _atualizar_total(self, total: float):
+        """Atualiza o label com o valor total das assinaturas."""
+        if hasattr(self, 'label_total'):
+            self.label_total.config(text=f"R$ {total:.2f}")
+    
+    def _atualizar_diferenca(self):
+        """Atualiza o label com a diferença entre meta e total de assinaturas ativas."""
+        if hasattr(self, 'label_diferenca') and self.controller:
+            diferenca = self.controller.calcular_diferenca_meta()
+            
+            # Muda a cor baseado no valor
+            if diferenca >= 0:
+                cor = "#4CAF50"  # Verde se positivo (dentro da meta)
+            else:
+                cor = "#ff6b6b"  # Vermelho se negativo (acima da meta)
+            
+            self.label_diferenca.config(text=f"R$ {diferenca:.2f}", fg=cor)
     
     def _on_double_click(self, event):
         """Mostra detalhes completos quando linha é clicada duas vezes."""
@@ -335,12 +402,8 @@ class AssinaturasView:
         
         assinatura_id = values[0]  # ID is first value
         
-        # VERIFICA E ATUALIZA O STATUS ANTES DE EXIBIR
-        if self.controller:
-            assinatura = self.controller.verificar_e_atualizar_status(assinatura_id)
-        else:
-            # Fallback: encontra a assinatura normalmente
-            assinatura = next((a for a in self.assinaturas_data if a.id == assinatura_id), None)
+        # Busca a assinatura
+        assinatura = next((a for a in self.assinaturas_data if a.id == assinatura_id), None)
         
         if assinatura:
             self._show_detail_modal(assinatura)
@@ -468,29 +531,54 @@ class AssinaturasView:
         btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
         btn_frame.pack(pady=(30, 0), fill="x")
         
-        tk.Button(
-            btn_frame,
-            text="Editar",
-            font=UI.FONT_BUTTON,
-            bg="#4CAF50",
-            fg="#ffffff",
-            activebackground="#45a049",
-            activeforeground="#ffffff",
-            relief="flat",
-            command=lambda: [modal.destroy(), self._show_edit_modal(assinatura)]
-        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
-        
-        tk.Button(
-            btn_frame,
-            text="Fechar",
-            font=UI.FONT_BUTTON,
-            bg=UI.BTN_BG,
-            fg=UI.BTN_FG,
-            activebackground=UI.BTN_ACTIVE_BG,
-            activeforeground=UI.BTN_ACTIVE_FG,
-            relief="flat",
-            command=modal.destroy
-        ).pack(side="left", fill="x", expand=True, padx=(5, 0))
+        # Se assinatura é readonly (compartilhada), não mostra botão Editar
+        if hasattr(assinatura, 'is_readonly') and assinatura.is_readonly:
+            # Adiciona indicador de compartilhamento
+            tk.Label(
+                content_frame,
+                text="📌 Assinatura compartilhada (somente leitura)",
+                font=("Inter", 10, "italic"),
+                bg=UI.BOX_BG,
+                fg="#ff9800",
+                anchor="w"
+            ).pack(pady=(10, 0))
+            
+            tk.Button(
+                btn_frame,
+                text="Fechar",
+                font=UI.FONT_BUTTON,
+                bg=UI.BTN_BG,
+                fg=UI.BTN_FG,
+                activebackground=UI.BTN_ACTIVE_BG,
+                activeforeground=UI.BTN_ACTIVE_FG,
+                relief="flat",
+                command=modal.destroy
+            ).pack(fill="x")
+        else:
+            # Assinatura própria - mostra botão Editar
+            tk.Button(
+                btn_frame,
+                text="Editar",
+                font=UI.FONT_BUTTON,
+                bg="#4CAF50",
+                fg="#ffffff",
+                activebackground="#45a049",
+                activeforeground="#ffffff",
+                relief="flat",
+                command=lambda: [modal.destroy(), self._show_edit_modal(assinatura)]
+            ).pack(side="left", fill="x", expand=True, padx=(0, 5))
+            
+            tk.Button(
+                btn_frame,
+                text="Fechar",
+                font=UI.FONT_BUTTON,
+                bg=UI.BTN_BG,
+                fg=UI.BTN_FG,
+                activebackground=UI.BTN_ACTIVE_BG,
+                activeforeground=UI.BTN_ACTIVE_FG,
+                relief="flat",
+                command=modal.destroy
+            ).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def _show_edit_modal(self, assinatura):
         """Mostra modal para editar uma assinatura."""
@@ -599,6 +687,17 @@ class AssinaturasView:
         entry_senha.insert(0, assinatura.senha or "")
         entry_senha.pack(fill="x", pady=(0, 10))
         
+        # Status
+        status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        status_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(status_frame, text="Status: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(status_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        combo_status = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_status['values'] = ["Ativo", "Encerrado"]
+        status_value = assinatura.status.value if hasattr(assinatura.status, 'value') else str(assinatura.status)
+        combo_status.set(status_value)
+        combo_status.pack(fill="x", pady=(0, 10))
+        
         def salvar_edicao():
             # Coleta dados do modal
             data = {
@@ -617,13 +716,16 @@ class AssinaturasView:
             validation = self.controller.validate_form_data(data, assinatura_id=assinatura.id)
             
             if not validation['success']:
-                messagebox.showerror("Erro de Validação", validation['message'])
+                self.controller.mostrar_erro("Erro de Validação", validation['message'])
                 return
             
             validated_data = validation['data']
             
+            # Importa o enum de status
+            from mvc.models.assinatura_status_enum import StatusAssinatura
+            
             if self.controller:
-                self.controller.editar(
+                resultado = self.controller.editar(
                     assinatura_id=assinatura.id,
                     nome=validated_data['nome'],
                     data_vencimento=validated_data['data_vencimento'],
@@ -635,10 +737,14 @@ class AssinaturasView:
                     login=validated_data['login'],
                     senha=validated_data['senha'],
                     favorito=assinatura.favorito,
-                    status=assinatura.status
+                    status=StatusAssinatura(combo_status.get())
                 )
                 modal.destroy()
-                messagebox.showinfo("Sucesso", "Assinatura atualizada com sucesso!")
+                
+                if resultado['success']:
+                    self.controller.mostrar_sucesso("Sucesso", resultado['message'])
+                else:
+                    self.controller.mostrar_erro("Erro no Compartilhamento", resultado['message'])
         
         # Botões
         btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
@@ -678,24 +784,13 @@ class AssinaturasView:
             validation = self.controller.validate_form_data(data, assinatura_id=None)
             
             if not validation['success']:
-                # Mensagens específicas por tipo de erro
-                if validation['error_code'] == 'REQUIRED_FIELDS':
-                    messagebox.showwarning("Campos Obrigatórios", validation['message'])
-                elif validation['error_code'] == 'INVALID_NUMBER':
-                    messagebox.showerror("Valor Inválido", validation['message'])
-                elif validation['error_code'] == 'INVALID_VALUE':
-                    messagebox.showerror("Valor Inválido", validation['message'])
-                elif validation['error_code'] == 'INVALID_DATE':
-                    messagebox.showerror("Data Inválida", validation['message'])
-                elif validation['error_code'] == 'DUPLICATE_NAME':
-                    messagebox.showerror("Nome Duplicado", validation['message'])
-                else:
-                    messagebox.showerror("Erro", validation['message'])
+                # Usa método centralizado para exibir erro
+                self.controller.exibir_erro_validacao(validation)
                 return
             
             # Adiciona assinatura
             validated_data = validation['data']
-            self.controller.adicionar(
+            resultado = self.controller.adicionar(
                 nome=validated_data['nome'],
                 data_vencimento=validated_data['data_vencimento'],
                 valor=validated_data['valor'],
@@ -707,15 +802,19 @@ class AssinaturasView:
                 senha=validated_data['senha']
             )
             
-            # Limpa o formulário
-            self.controller.clear_form()
-            messagebox.showinfo("Sucesso", "Assinatura adicionada com sucesso!")
+            # Verifica resultado
+            if resultado['success']:
+                # Limpa o formulário
+                self.controller.clear_form()
+                self.controller.mostrar_sucesso("Sucesso", resultado['message'])
+            else:
+                self.controller.mostrar_erro("Erro no Compartilhamento", resultado['message'])
     
     def _on_remover(self):
         """Callback quando o botão remover é clicado."""
         selected = self.tree.selection()
         if not selected:
-            messagebox.showwarning("Aviso", "Selecione uma assinatura para remover!")
+            self.controller.mostrar_aviso("Aviso", "Selecione uma assinatura para remover!")
             return
         
         item = self.tree.item(selected[0])
@@ -724,14 +823,16 @@ class AssinaturasView:
             assinatura_id = values[0]
             
             if self.controller:
-                confirm = messagebox.askyesno("Confirmar", "Deseja realmente remover esta assinatura?")
-                if confirm:
+                if self.controller.confirmar_acao(
+                    "Confirmar Remoção",
+                    "Deseja realmente remover esta assinatura?\n\nEsta ação não pode ser desfeita."
+                ):
                     resultado = self.controller.remover(assinatura_id)
                     
                     if resultado['success']:
-                        messagebox.showinfo("Sucesso", resultado['message'])
+                        self.controller.mostrar_sucesso("Sucesso", resultado['message'])
                     else:
-                        messagebox.showerror("Não é possível remover", resultado['message'])
+                        self.controller.mostrar_erro("Não é possível remover", resultado['message'])
     
     def set_combo_values(self, periodicidades, categorias, formas_pagamento):
         """Define os valores dos comboboxes."""

@@ -1,6 +1,7 @@
 # dao.py
 import sqlite3
 from typing import Optional, List
+from datetime import datetime
 from mvc.models.usuario_model import Usuario
 
 class UserDAO:
@@ -113,6 +114,24 @@ class UserDAO:
             (nome, email, senha_hash, user_id)
         )
         self.conn.commit()
+    
+    # ---------------- GET USER ID BY EMAIL ----------------
+    def get_user_id_by_email(self, email: str) -> Optional[int]:
+        """
+        Retorna o ID do usuário baseado no email.
+        
+        Args:
+            email: Email do usuário
+            
+        Returns:
+            ID do usuário ou None se não encontrado
+        """
+        cursor = self.conn.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (email,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
 
 class PagamentosDAO:
     """DAO para gerenciar pagamentos no banco de dados."""
@@ -234,10 +253,12 @@ class AssinaturasDAO:
     """DAO para gerenciar assinaturas no banco de dados."""
     
     def __init__(self, db_file="database.sqlite"):
-        self.conn = sqlite3.connect(db_file)
-        self._create_table()
+        self.db_file = db_file
+        with sqlite3.connect(self.db_file) as conn:
+            self._create_table(conn)
+            self._create_compartilhamentos_table(conn)
     
-    def _create_table(self):
+    def _create_table(self, conn):
         query = """
         CREATE TABLE IF NOT EXISTS assinaturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,122 +274,165 @@ class AssinaturasDAO:
             senha TEXT,
             favorito INTEGER DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'Ativo',
+            created_at TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
         """
-        self.conn.execute(query)
-        self.conn.commit()
+        conn.execute(query)
+        conn.commit()
         
         # Ensure favorito column exists in existing databases
-        self._ensure_favorito_column()
-        self._ensure_status_column()
+        self._ensure_favorito_column(conn)
+        self._ensure_status_column(conn)
+        self._ensure_created_at_column(conn)
     
-    def _ensure_favorito_column(self):
+    def _ensure_favorito_column(self, conn):
         """Adiciona coluna favorito se não existir."""
-        cur = self.conn.execute("PRAGMA table_info(assinaturas)")
+        cur = conn.execute("PRAGMA table_info(assinaturas)")
         cols = {row[1] for row in cur.fetchall()}
         if "favorito" not in cols:
-            self.conn.execute(
+            conn.execute(
                 "ALTER TABLE assinaturas ADD COLUMN favorito INTEGER DEFAULT 0"
             )
-            self.conn.commit()
+            conn.commit()
     
-    def _ensure_status_column(self):
+    def _ensure_status_column(self, conn):
         """Adiciona coluna status se não existir."""
-        cur = self.conn.execute("PRAGMA table_info(assinaturas)")
+        cur = conn.execute("PRAGMA table_info(assinaturas)")
         cols = {row[1] for row in cur.fetchall()}
         if "status" not in cols:
-            self.conn.execute(
+            conn.execute(
                 "ALTER TABLE assinaturas ADD COLUMN status TEXT NOT NULL DEFAULT 'Ativo'"
             )
-            self.conn.commit()
+            conn.commit()
+    
+    def _ensure_created_at_column(self, conn):
+        """Adiciona coluna created_at se não existir."""
+        cur = conn.execute("PRAGMA table_info(assinaturas)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "created_at" not in cols:
+            # SQLite não permite DEFAULT CURRENT_TIMESTAMP em ALTER TABLE
+            # Usa uma data fixa como fallback para registros antigos
+            conn.execute(
+                "ALTER TABLE assinaturas ADD COLUMN created_at TEXT"
+            )
+            # Atualiza registros existentes com a data atual
+            conn.execute(
+                "UPDATE assinaturas SET created_at = ? WHERE created_at IS NULL",
+                (datetime.now().isoformat(),)
+            )
+            conn.commit()
+    
+    def _create_compartilhamentos_table(self, conn):
+        """Cria tabela para gerenciar compartilhamentos de assinaturas."""
+        query = """
+        CREATE TABLE IF NOT EXISTS assinaturas_compartilhadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            assinatura_id INTEGER NOT NULL,
+            user_id_proprietario INTEGER NOT NULL,
+            user_id_compartilhado INTEGER NOT NULL,
+            compartilhado_em TEXT NOT NULL,
+            FOREIGN KEY (assinatura_id) REFERENCES assinaturas (id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id_proprietario) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id_compartilhado) REFERENCES users (id) ON DELETE CASCADE,
+            UNIQUE(assinatura_id, user_id_compartilhado)
+        )
+        """
+        conn.execute(query)
+        conn.commit()
     
     def add_assinatura(self, assinatura):
         """Adiciona uma nova assinatura ao banco."""
         query = """
             INSERT INTO assinaturas 
             (user_id, nome, data_vencimento, valor, periodicidade, tag, 
-             forma_pagamento, usuario_compartilhado, login, senha, favorito, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = self.conn.execute(
-            query,
-            (
-                assinatura.user_id,
-                assinatura.nome,
-                assinatura.data_vencimento,
-                assinatura.valor,
-                assinatura.periodicidade,
-                assinatura.tag,
-                assinatura.forma_pagamento,
-                assinatura.usuario_compartilhado,
-                assinatura.login,
-                assinatura.senha,
-                assinatura.favorito,
-                assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo'
+        with sqlite3.connect(self.db_file) as conn:
+            cursor = conn.execute(
+                query,
+                (
+                    assinatura.user_id,
+                    assinatura.nome,
+                    assinatura.data_vencimento,
+                    assinatura.valor,
+                    assinatura.periodicidade,
+                    assinatura.tag,
+                    assinatura.forma_pagamento,
+                    assinatura.usuario_compartilhado,
+                    assinatura.login,
+                    assinatura.senha,
+                    assinatura.favorito,
+                    assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo',
+                    assinatura.created_at if hasattr(assinatura, 'created_at') else datetime.now().isoformat()
+                )
             )
-        )
-        self.conn.commit()
-        return cursor.lastrowid
+            conn.commit()
+            return cursor.lastrowid
     
     def get_assinaturas_by_user(self, user_id: int) -> List:
         """Retorna todas as assinaturas de um usuário, favoritas primeiro."""
         from mvc.models.assinaturas_model import Assinatura
-        cursor = self.conn.execute(
-            """
-            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, 
-                   tag, forma_pagamento, usuario_compartilhado, login, senha, favorito, status
-            FROM assinaturas 
-            WHERE user_id = ?
-            ORDER BY favorito DESC, data_vencimento
-            """,
-            (user_id,)
-        )
-        
-        assinaturas = []
-        for row in cursor.fetchall():
-            assinatura = Assinatura(
-                nome=row[2],
-                data_vencimento=row[3],
-                valor=row[4],
-                periodicidade=row[5],
-                tag=row[6],
-                forma_pagamento=row[7],
-                usuario_compartilhado=row[8],
-                login=row[9],
-                senha=row[10],
-                favorito=row[11],
-                assinatura_id=row[0],
-                user_id=row[1],
-                status=row[12] if len(row) > 12 else 'Ativo'
+        with sqlite3.connect(self.db_file) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, user_id, nome, data_vencimento, valor, periodicidade, 
+                       tag, forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at
+                FROM assinaturas 
+                WHERE user_id = ?
+                ORDER BY favorito DESC, data_vencimento
+                """,
+                (user_id,)
             )
-            assinaturas.append(assinatura)
-        
-        return assinaturas
+            
+            assinaturas = []
+            for row in cursor.fetchall():
+                assinatura = Assinatura(
+                    nome=row[2],
+                    data_vencimento=row[3],
+                    valor=row[4],
+                    periodicidade=row[5],
+                    tag=row[6],
+                    forma_pagamento=row[7],
+                    usuario_compartilhado=row[8],
+                    login=row[9],
+                    senha=row[10],
+                    favorito=row[11],
+                    assinatura_id=row[0],
+                    user_id=row[1],
+                    status=row[12] if len(row) > 12 else 'Ativo',
+                    created_at=row[13] if len(row) > 13 else None
+                )
+                assinaturas.append(assinatura)
+            
+            return assinaturas
     
     def toggle_favorito(self, assinatura_id: int):
         """Alterna o status de favorito."""
-        # Get current status
-        cursor = self.conn.execute(
-            "SELECT favorito FROM assinaturas WHERE id = ?",
-            (assinatura_id,)
-        )
-        row = cursor.fetchone()
-        if row:
-            new_status = 0 if row[0] == 1 else 1
-            self.conn.execute(
-                "UPDATE assinaturas SET favorito = ? WHERE id = ?",
-                (new_status, assinatura_id)
+        with sqlite3.connect(self.db_file) as conn:
+            # Get current status
+            cursor = conn.execute(
+                "SELECT favorito FROM assinaturas WHERE id = ?",
+                (assinatura_id,)
             )
-            self.conn.commit()
+            row = cursor.fetchone()
+            if row:
+                new_status = 0 if row[0] == 1 else 1
+                conn.execute(
+                    "UPDATE assinaturas SET favorito = ? WHERE id = ?",
+                    (new_status, assinatura_id)
+                )
+                conn.commit()
     
     def delete_assinatura(self, assinatura_id: int):
         """Remove uma assinatura do banco."""
-        self.conn.execute(
-            "DELETE FROM assinaturas WHERE id = ?",
-            (assinatura_id,)
-        )
-        self.conn.commit()
+        with sqlite3.connect(self.db_file) as conn:
+            conn.execute(
+                "DELETE FROM assinaturas WHERE id = ?",
+                (assinatura_id,)
+            )
+            conn.commit()
     
     def update_assinatura(self, assinatura):
         """Atualiza uma assinatura existente."""
@@ -379,24 +443,107 @@ class AssinaturasDAO:
                 login = ?, senha = ?, favorito = ?, status = ?
             WHERE id = ?
         """
-        self.conn.execute(
-            query,
-            (
-                assinatura.nome,
-                assinatura.data_vencimento,
-                assinatura.valor,
-                assinatura.periodicidade,
-                assinatura.tag,
-                assinatura.forma_pagamento,
-                assinatura.usuario_compartilhado,
-                assinatura.login,
-                assinatura.senha,
-                assinatura.favorito,
-                assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo',
-                assinatura.id
+        with sqlite3.connect(self.db_file) as conn:
+            conn.execute(
+                query,
+                (
+                    assinatura.nome,
+                    assinatura.data_vencimento,
+                    assinatura.valor,
+                    assinatura.periodicidade,
+                    assinatura.tag,
+                    assinatura.forma_pagamento,
+                    assinatura.usuario_compartilhado,
+                    assinatura.login,
+                    assinatura.senha,
+                    assinatura.favorito,
+                    assinatura.status.value if hasattr(assinatura, 'status') else 'Ativo',
+                    assinatura.id
+                )
             )
-        )
-        self.conn.commit()
+            conn.commit()
+    
+    def compartilhar_assinatura(self, assinatura_id: int, user_id_proprietario: int, user_id_compartilhado: int):
+        """
+        Compartilha uma assinatura com outro usuário.
+        
+        Args:
+            assinatura_id: ID da assinatura
+            user_id_proprietario: ID do proprietário
+            user_id_compartilhado: ID do usuário que receberá acesso readonly
+        """
+        with sqlite3.connect(self.db_file) as conn:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO assinaturas_compartilhadas 
+                    (assinatura_id, user_id_proprietario, user_id_compartilhado, compartilhado_em)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (assinatura_id, user_id_proprietario, user_id_compartilhado, datetime.now().isoformat())
+                )
+                conn.commit()
+                return True
+            except sqlite3.IntegrityError:
+                # Já está compartilhado com este usuário
+                return False
+    
+    def remover_compartilhamento(self, assinatura_id: int, user_id_compartilhado: int):
+        """Remove um compartilhamento."""
+        with sqlite3.connect(self.db_file) as conn:
+            conn.execute(
+                "DELETE FROM assinaturas_compartilhadas WHERE assinatura_id = ? AND user_id_compartilhado = ?",
+                (assinatura_id, user_id_compartilhado)
+            )
+            conn.commit()
+    
+    def get_assinaturas_compartilhadas_comigo(self, user_id: int) -> List:
+        """
+        Retorna assinaturas que foram compartilhadas COMIGO (readonly).
+        
+        Args:
+            user_id: ID do usuário que recebeu o compartilhamento
+            
+        Returns:
+            Lista de assinaturas compartilhadas (com flag is_readonly=True)
+        """
+        from mvc.models.assinaturas_model import Assinatura
+        with sqlite3.connect(self.db_file) as conn:
+            cursor = conn.execute(
+                """
+                SELECT a.id, a.user_id, a.nome, a.data_vencimento, a.valor, a.periodicidade, 
+                       a.tag, a.forma_pagamento, a.usuario_compartilhado, a.login, a.senha, 
+                       a.favorito, a.status, a.created_at
+                FROM assinaturas a
+                INNER JOIN assinaturas_compartilhadas ac ON a.id = ac.assinatura_id
+                WHERE ac.user_id_compartilhado = ?
+                ORDER BY a.data_vencimento
+                """,
+                (user_id,)
+            )
+            
+            assinaturas = []
+            for row in cursor.fetchall():
+                assinatura = Assinatura(
+                    nome=row[2],
+                    data_vencimento=row[3],
+                    valor=row[4],
+                    periodicidade=row[5],
+                    tag=row[6],
+                    forma_pagamento=row[7],
+                    usuario_compartilhado=row[8],
+                    login=row[9],
+                    senha=row[10],
+                    favorito=row[11],
+                    assinatura_id=row[0],
+                    user_id=row[1],
+                    status=row[12] if len(row) > 12 else 'Ativo',
+                    created_at=row[13] if len(row) > 13 else None
+                )
+                assinatura.is_readonly = True  # Marca como apenas leitura
+                assinaturas.append(assinatura)
+            
+            return assinaturas
 
 class ContratosDAO:
     """DAO para gerenciar contratos no banco de dados."""
