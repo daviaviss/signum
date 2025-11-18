@@ -156,7 +156,7 @@ class AssinaturasView:
             activebackground=UI.BTN_ACTIVE_BG,
             activeforeground=UI.BTN_ACTIVE_FG,
             relief="flat",
-            command=self._on_adicionar
+            command=self._ao_adicionar
         )
         self.btn_adicionar.pack(fill="x", padx=10, pady=20)
     
@@ -194,12 +194,12 @@ class AssinaturasView:
         tree_container.grid_columnconfigure(0, weight=1)
         
         # Definir colunas com comando de ordenação
-        self.tree.heading("fav", text="★", command=lambda: self._sort_column("fav"))
-        self.tree.heading("Nome", text="Nome", command=lambda: self._sort_column("Nome"))
-        self.tree.heading("Valor", text="Valor", command=lambda: self._sort_column("Valor"))
-        self.tree.heading("Vencimento", text="Vencimento", command=lambda: self._sort_column("Vencimento"))
-        self.tree.heading("Periodicidade", text="Periodicidade", command=lambda: self._sort_column("Periodicidade"))
-        self.tree.heading("Categoria", text="Categoria", command=lambda: self._sort_column("Categoria"))
+        self.tree.heading("fav", text="★", command=lambda: self._ordenar_coluna("fav"))
+        self.tree.heading("Nome", text="Nome", command=lambda: self._ordenar_coluna("Nome"))
+        self.tree.heading("Valor", text="Valor", command=lambda: self._ordenar_coluna("Valor"))
+        self.tree.heading("Vencimento", text="Vencimento", command=lambda: self._ordenar_coluna("Vencimento"))
+        self.tree.heading("Periodicidade", text="Periodicidade", command=lambda: self._ordenar_coluna("Periodicidade"))
+        self.tree.heading("Categoria", text="Categoria", command=lambda: self._ordenar_coluna("Categoria"))
         
         for col in ("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Categoria"):
             self.sort_reverse[col] = False
@@ -273,7 +273,7 @@ class AssinaturasView:
             activebackground="#ff5252",
             activeforeground="#ffffff",
             relief="flat",
-            command=self._on_remover
+            command=self._ao_remover
         )
         self.btn_remover.pack(side="right")
     
@@ -293,9 +293,9 @@ class AssinaturasView:
             if values:
                 assinatura_id = values[0]  # ID is hidden but still in values
                 if self.controller:
-                    self.controller.toggle_favorito(assinatura_id)
+                    self.controller.alternar_favorito(assinatura_id)
     
-    def _sort_column(self, col):
+    def _ordenar_coluna(self, col):
         """Ordena o treeview pela coluna clicada."""
         # Toggle sort direction
         self.sort_reverse[col] = not self.sort_reverse[col]
@@ -326,7 +326,7 @@ class AssinaturasView:
             )
         
         # Update treeview
-        self._refresh_treeview()
+        self._atualizar_treeview()
         
         # Update heading to show sort direction
         visible_cols = ("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Categoria")
@@ -341,7 +341,7 @@ class AssinaturasView:
             else:
                 self.tree.heading(c, text="★" if c == "fav" else c)
     
-    def _refresh_treeview(self):
+    def _atualizar_treeview(self):
         """Atualiza o treeview com os dados ordenados."""
         # Limpa o treeview
         for item in self.tree.get_children():
@@ -406,9 +406,9 @@ class AssinaturasView:
         assinatura = next((a for a in self.assinaturas_data if a.id == assinatura_id), None)
         
         if assinatura:
-            self._show_detail_modal(assinatura)
+            self._mostrar_modal_detalhes(assinatura)
     
-    def _show_detail_modal(self, assinatura):
+    def _mostrar_modal_detalhes(self, assinatura):
         """Mostra modal com todos os detalhes da assinatura."""
         modal = tk.Toplevel(self.parent)
         modal.title("Detalhes da Assinatura")
@@ -565,7 +565,7 @@ class AssinaturasView:
                 activebackground="#45a049",
                 activeforeground="#ffffff",
                 relief="flat",
-                command=lambda: [modal.destroy(), self._show_edit_modal(assinatura)]
+                command=lambda: [modal.destroy(), self._mostrar_modal_edicao(assinatura)]
             ).pack(side="left", fill="x", expand=True, padx=(0, 5))
             
             tk.Button(
@@ -580,7 +580,7 @@ class AssinaturasView:
                 command=modal.destroy
             ).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
-    def _show_edit_modal(self, assinatura):
+    def _mostrar_modal_edicao(self, assinatura):
         """Mostra modal para editar uma assinatura."""
         modal = tk.Toplevel(self.parent)
         modal.title("Editar Assinatura")
@@ -713,13 +713,13 @@ class AssinaturasView:
             }
             
             # Valida os dados (passa assinatura_id para permitir mesmo nome na edição)
-            validation = self.controller.validate_form_data(data, assinatura_id=assinatura.id)
+            validacao = self.controller.validar_dados_formulario(data, assinatura_id=assinatura.id)
             
-            if not validation['success']:
-                self.controller.mostrar_erro("Erro de Validação", validation['message'])
+            if not validacao['success']:
+                self.controller.mostrar_erro("Erro de Validação", validacao['message'])
                 return
             
-            validated_data = validation['data']
+            validated_data = validacao['data']
             
             # Importa o enum de status
             from mvc.models.assinatura_status_enum import StatusAssinatura
@@ -774,22 +774,22 @@ class AssinaturasView:
             command=modal.destroy
         ).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
-    def _on_adicionar(self):
+    def _ao_adicionar(self):
         """Callback quando o botão adicionar é clicado."""
         if self.controller:
             # Obtém dados do formulário via controller
-            data = self.controller.get_form_data()
+            data = self.controller.obter_dados_formulario()
             
             # Valida os dados (None para nova assinatura)
-            validation = self.controller.validate_form_data(data, assinatura_id=None)
+            validacao = self.controller.validar_dados_formulario(data, assinatura_id=None)
             
-            if not validation['success']:
+            if not validacao['success']:
                 # Usa método centralizado para exibir erro
-                self.controller.exibir_erro_validacao(validation)
+                self.controller.exibir_erro_validacao(validacao)
                 return
             
             # Adiciona assinatura
-            validated_data = validation['data']
+            validated_data = validacao['data']
             resultado = self.controller.adicionar(
                 nome=validated_data['nome'],
                 data_vencimento=validated_data['data_vencimento'],
@@ -805,12 +805,12 @@ class AssinaturasView:
             # Verifica resultado
             if resultado['success']:
                 # Limpa o formulário
-                self.controller.clear_form()
+                self.controller.limpar_formulario()
                 self.controller.mostrar_sucesso("Sucesso", resultado['message'])
             else:
                 self.controller.mostrar_erro("Erro no Compartilhamento", resultado['message'])
     
-    def _on_remover(self):
+    def _ao_remover(self):
         """Callback quando o botão remover é clicado."""
         selected = self.tree.selection()
         if not selected:
@@ -854,4 +854,5 @@ class AssinaturasView:
         self.assinaturas_data = assinaturas
         
         # Refresh treeview
-        self._refresh_treeview()
+        self._atualizar_treeview()
+

@@ -55,25 +55,55 @@ class AssinaturasController:
         """
         return messagebox.askyesno(f"❓ {titulo}", mensagem)
     
-    def exibir_erro_validacao(self, validation):
+    def _exibir_erro_campos_obrigatorios(self, mensagem: str):
+        """Exibe erro de campos obrigatórios não preenchidos."""
+        self.mostrar_aviso("Campos Obrigatórios", mensagem)
+    
+    def _exibir_erro_valor_invalido(self, mensagem: str):
+        """Exibe erro de valor com formato inválido."""
+        self.mostrar_erro("Valor Inválido", mensagem)
+    
+    def _exibir_erro_data_invalida(self, mensagem: str):
+        """Exibe erro de data com formato ou valor inválido."""
+        self.mostrar_erro("Data Inválida", mensagem)
+    
+    def _exibir_erro_nome_duplicado(self, mensagem: str):
+        """Exibe erro de nome duplicado."""
+        self.mostrar_erro("Nome Duplicado", mensagem)
+    
+    def _exibir_erro_generico(self, mensagem: str):
+        """Exibe erro genérico de validação."""
+        self.mostrar_erro("Erro de Validação", mensagem)
+    
+    def _obter_mapeamento_erros_validacao(self):
+        """
+        Retorna o mapeamento entre error_code e método de exibição.
+        
+        Returns:
+            dict: Dicionário mapeando error_code para método
+        """
+        return {
+            'REQUIRED_FIELDS': self._exibir_erro_campos_obrigatorios,
+            'INVALID_NUMBER': self._exibir_erro_valor_invalido,
+            'INVALID_DATE_FORMAT': self._exibir_erro_data_invalida,
+            'INVALID_DATE_PAST': self._exibir_erro_data_invalida,
+            'DUPLICATE_NAME': self._exibir_erro_nome_duplicado
+        }
+    
+    def exibir_erro_validacao(self, validacao):
         """
         Exibe a mensagem de erro apropriada baseado no código de validação.
-        Simplifica o código da view removendo lógica condicional.
+        Usa mapeamento de error_code para método específico.
         
         Args:
-            validation: Dicionário retornado por validate_form_data
+            validacao: Dicionário retornado por validar_dados_formulario
         """
-        error_code = validation.get('error_code', '')
-        message = validation.get('message', 'Erro desconhecido')
+        error_code = validacao.get('error_code', '')
+        mensagem = validacao.get('message', 'Erro desconhecido')
         
-        if error_code == 'REQUIRED_FIELDS':
-            self.mostrar_aviso("Campos Obrigatórios", message)
-        elif error_code in ['INVALID_NUMBER', 'INVALID_VALUE', 'INVALID_DATE']:
-            self.mostrar_erro("Valor Inválido", message)
-        elif error_code == 'DUPLICATE_NAME':
-            self.mostrar_erro("Nome Duplicado", message)
-        else:
-            self.mostrar_erro("Erro de Validação", message)
+        mapeamento_erros = self._obter_mapeamento_erros_validacao()
+        metodo_exibicao = mapeamento_erros.get(error_code, self._exibir_erro_generico)
+        metodo_exibicao(mensagem)
     
     # ==================== MÉTODOS DE NEGÓCIO ====================
     
@@ -84,10 +114,10 @@ class AssinaturasController:
             self.renovar_todas_assinaturas_ativas()
             
             # Busca assinaturas próprias
-            assinaturas_proprias = self.dao.get_assinaturas_by_user(self.user_id)
+            assinaturas_proprias = self.dao.obter_assinaturas_por_usuario(self.user_id)
             
             # Busca assinaturas compartilhadas comigo (readonly)
-            assinaturas_compartilhadas = self.dao.get_assinaturas_compartilhadas_comigo(self.user_id)
+            assinaturas_compartilhadas = self.dao.obter_assinaturas_compartilhadas_comigo(self.user_id)
             
             # Combina as duas listas
             todas_assinaturas = assinaturas_proprias + assinaturas_compartilhadas
@@ -113,10 +143,10 @@ class AssinaturasController:
             return 0.0
         
         # Busca assinaturas próprias
-        assinaturas_proprias = self.dao.get_assinaturas_by_user(self.user_id)
+        assinaturas_proprias = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
         # Busca assinaturas compartilhadas comigo
-        assinaturas_compartilhadas = self.dao.get_assinaturas_compartilhadas_comigo(self.user_id)
+        assinaturas_compartilhadas = self.dao.obter_assinaturas_compartilhadas_comigo(self.user_id)
         
         total = 0.0
         
@@ -153,7 +183,7 @@ class AssinaturasController:
         
         return meta - total_ativo
     
-    def get_form_data(self):
+    def obter_dados_formulario(self):
         """Extrai e normaliza os dados do formulário da view."""
         return {
             'nome': self.view.entry_nome.get().strip(),
@@ -167,7 +197,7 @@ class AssinaturasController:
             'senha': self.view.entry_senha.get().strip()
         }
     
-    def _validate_date(self, date_str):
+    def _validar_data(self, date_str):
         """
         Valida se a data está no formato correto e se é >= data atual.
         
@@ -201,7 +231,7 @@ class AssinaturasController:
             'date': date_obj
         }
     
-    def _check_duplicate_name(self, nome, assinatura_id=None):
+    def _verificar_nome_duplicado(self, nome, assinatura_id=None):
         """
         Verifica se já existe uma assinatura com o mesmo nome para o usuário.
         
@@ -215,7 +245,7 @@ class AssinaturasController:
         if not self.user_id:
             return {'duplicate': False, 'message': ''}
         
-        assinaturas = self.dao.get_assinaturas_by_user(self.user_id)
+        assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
         for assinatura in assinaturas:
             # Ignora a própria assinatura ao editar
@@ -230,22 +260,16 @@ class AssinaturasController:
         
         return {'duplicate': False, 'message': ''}
     
-    def validate_form_data(self, data, assinatura_id=None):
+    def _validar_campos_obrigatorios(self, data):
         """
-        Valida os dados do formulário na ordem especificada:
-        1. Campos obrigatórios
-        2. Valores numéricos
-        3. Data válida e >= data atual
-        4. Nome não duplicado
+        Valida se todos os campos obrigatórios foram preenchidos.
         
         Args:
             data: Dict com os dados do formulário
-            assinatura_id: ID da assinatura (None para nova, int para edição)
-        
+            
         Returns:
-            dict: {'success': bool, 'message': str, 'error_code': str, 'data': dict}
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None}
         """
-        # 1. VALIDAR CAMPOS OBRIGATÓRIOS
         required_fields = {
             'nome': 'Nome',
             'valor': 'Valor',
@@ -268,39 +292,96 @@ class AssinaturasController:
                 'data': None
             }
         
-        # 2. VALIDAR SE VALORES NUMÉRICOS SÃO DE FATO NUMÉRICOS
+        return {'success': True, 'error_code': 'OK', 'data': data}
+    
+    def _validar_formato_valor(self, data):
+        """
+        Valida se o valor tem formato numérico válido e é positivo.
+        Converte o valor para float se válido.
+        
+        Args:
+            data: Dict com os dados do formulário (será modificado)
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': dict ou None}
+        """
         try:
             valor = float(data['valor'])
             
-            if valor < 0:  # Mudado para permitir 0
-                return {
-                    'success': False,
-                    'message': 'O valor não pode ser negativo!',
-                    'error_code': 'INVALID_VALUE',
-                    'data': None
-                }
+            if valor < 0:
+                raise ValueError("Negativo")
             
             data['valor'] = valor
+            return {'success': True, 'error_code': 'OK', 'data': data}
+            
         except ValueError:
             return {
                 'success': False,
-                'message': 'Valor inválido! Use apenas números (ex: 99.90 ou 99,90).',
+                'message': 'Valor inválido! Use apenas números positivos (ex: 99.90 ou 99,90).',
                 'error_code': 'INVALID_NUMBER',
                 'data': None
             }
+    
+    def _validar_formato_data(self, data):
+        """
+        Valida se a data tem formato DD/MM/AAAA válido.
         
-        # 3. VALIDAR SE A DATA É MAIOR OU IGUAL À DATA ATUAL
-        date_validation = self._validate_date(data['data_vencimento'])
-        if not date_validation['valid']:
+        Args:
+            data: Dict com os dados do formulário
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None, 'date_obj': date ou None}
+        """
+        try:
+            date_obj = datetime.strptime(data['data_vencimento'], "%d/%m/%Y").date()
+            return {
+                'success': True,
+                'error_code': 'OK',
+                'data': data,
+                'date_obj': date_obj
+            }
+        except ValueError:
             return {
                 'success': False,
-                'message': date_validation['message'],
-                'error_code': 'INVALID_DATE',
+                'message': 'Data inválida! Use o formato DD/MM/AAAA.',
+                'error_code': 'INVALID_DATE_FORMAT',
+                'data': None,
+                'date_obj': None
+            }
+    
+    def _validar_data_nao_futura(self, date_obj):
+        """
+        Valida se a data é maior ou igual à data atual.
+        
+        Args:
+            date_obj: datetime.date objeto
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None}
+        """
+        today = datetime.now().date()
+        if date_obj < today:
+            return {
+                'success': False,
+                'message': 'A data de vencimento deve ser hoje ou uma data futura!',
+                'error_code': 'INVALID_DATE_PAST',
                 'data': None
             }
         
-        # 4. VALIDAR SE O NOME NUNCA FOI CADASTRADO
-        duplicate_check = self._check_duplicate_name(data['nome'], assinatura_id)
+        return {'success': True, 'error_code': 'OK', 'data': None}
+    
+    def _validar_nome_unico(self, data, assinatura_id=None):
+        """
+        Valida se o nome da assinatura é único para o usuário.
+        
+        Args:
+            data: Dict com os dados do formulário
+            assinatura_id: ID da assinatura (None para nova, int para edição)
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None}
+        """
+        duplicate_check = self._verificar_nome_duplicado(data['nome'], assinatura_id)
         if duplicate_check['duplicate']:
             return {
                 'success': False,
@@ -309,6 +390,51 @@ class AssinaturasController:
                 'data': None
             }
         
+        return {'success': True, 'error_code': 'OK', 'data': data}
+    
+    def validar_dados_formulario(self, data, assinatura_id=None):
+        """
+        Valida os dados do formulário na ordem especificada:
+        1. Campos obrigatórios
+        2. Valor inválido (formato)
+        3. Data inválida (formato)
+        4. Data < data_atual
+        5. Nome duplicado
+        
+        Args:
+            data: Dict com os dados do formulário
+            assinatura_id: ID da assinatura (None para nova, int para edição)
+        
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': dict}
+        """
+        # 1. VALIDAR CAMPOS OBRIGATÓRIOS
+        validacao = self._validar_campos_obrigatorios(data)
+        if not validacao['success']:
+            return validacao
+        
+        # 2. VALIDAR FORMATO DO VALOR
+        validacao = self._validar_formato_valor(data)
+        if not validacao['success']:
+            return validacao
+        
+        # 3. VALIDAR FORMATO DA DATA
+        validacao = self._validar_formato_data(data)
+        if not validacao['success']:
+            return validacao
+        
+        date_obj = validacao['date_obj']
+
+        # 4. VALIDAR SE DATA >= DATA ATUAL
+        validacao = self._validar_data_nao_futura(date_obj)
+        if not validacao['success']:
+            return validacao
+        
+        # 5. VALIDAR SE O NOME É ÚNICO
+        validacao = self._validar_nome_unico(data, assinatura_id)
+        if not validacao['success']:
+            return validacao
+        
         return {
             'success': True,
             'message': 'Dados validados com sucesso!',
@@ -316,7 +442,7 @@ class AssinaturasController:
             'data': data
         }
     
-    def clear_form(self):
+    def limpar_formulario(self):
         """Limpa todos os campos do formulário."""
         self.view.entry_nome.delete(0, 'end')
         self.view.entry_valor.delete(0, 'end')
@@ -415,7 +541,7 @@ class AssinaturasController:
             favorito=0,
             status=StatusAssinatura.ATIVO
         )
-        assinatura_id = self.dao.add_assinatura(assinatura)
+        assinatura_id = self.dao.adicionar_assinatura(assinatura)
         
         return self._finalizar_operacao(
             assinatura_id, 
@@ -437,7 +563,7 @@ class AssinaturasController:
             return {'can_remove': False, 'message': 'Usuário não identificado!'}
         
         # Busca a assinatura APENAS entre as do próprio usuário (não nas compartilhadas)
-        assinaturas_proprias = self.dao.get_assinaturas_by_user(self.user_id)
+        assinaturas_proprias = self.dao.obter_assinaturas_por_usuario(self.user_id)
         assinatura = next((a for a in assinaturas_proprias if a.id == assinatura_id), None)
         
         if not assinatura:
@@ -466,112 +592,15 @@ class AssinaturasController:
             return {'success': False, 'message': validacao['message']}
         
         # Remove a assinatura
-        self.dao.delete_assinatura(assinatura_id)
+        self.dao.deletar_assinatura(assinatura_id)
         self._carregar_assinaturas()
         return {'success': True, 'message': 'Assinatura removida com sucesso!'}
     
-    def toggle_favorito(self, assinatura_id: int):
+    def alternar_favorito(self, assinatura_id: int):
         """Alterna o status de favorito de uma assinatura."""
         if self.user_id:
-            self.dao.toggle_favorito(assinatura_id)
+            self.dao.alternar_favorito(assinatura_id)
             self._carregar_assinaturas()
-    
-    def renovar_vencimento_se_necessario(self, assinatura_id: int):
-        """
-        Verifica se o vencimento passou e renova automaticamente baseado na periodicidade.
-        Apenas para assinaturas ATIVAS.
-        
-        Args:
-            assinatura_id: ID da assinatura a verificar
-            
-        Returns:
-            bool: True se renovou, False caso contrário
-        """
-        if not self.user_id:
-            return False
-        
-        # Busca a assinatura
-        assinaturas = self.dao.get_assinaturas_by_user(self.user_id)
-        assinatura = next((a for a in assinaturas if a.id == assinatura_id), None)
-        
-        if not assinatura or assinatura.status != StatusAssinatura.ATIVO:
-            return False
-        
-        try:
-            from mvc.models.periodicidade_enum import Periodicidade
-            
-            # Converte a data de vencimento
-            data_vencimento = datetime.strptime(assinatura.data_vencimento, "%d/%m/%Y").date()
-            hoje = datetime.now().date()
-            
-            # Se a data de vencimento já passou
-            if data_vencimento < hoje:
-                # Calcula a próxima data baseado na periodicidade
-                periodicidade = assinatura.periodicidade
-                
-                # Continua renovando até que a data seja >= hoje
-                nova_data = data_vencimento
-                while nova_data < hoje:
-                    if periodicidade == Periodicidade.MENSAL.value:
-                        # Adiciona 1 mês
-                        mes = nova_data.month + 1
-                        ano = nova_data.year
-                        if mes > 12:
-                            mes = 1
-                            ano += 1
-                        # Ajusta o dia se necessário (ex: 31/01 -> 28/02)
-                        dia = min(nova_data.day, self._ultimo_dia_mes(ano, mes))
-                        nova_data = nova_data.replace(year=ano, month=mes, day=dia)
-                    elif periodicidade == Periodicidade.TRIMESTRAL.value:
-                        # Adiciona 3 meses
-                        mes = nova_data.month + 3
-                        ano = nova_data.year
-                        while mes > 12:
-                            mes -= 12
-                            ano += 1
-                        dia = min(nova_data.day, self._ultimo_dia_mes(ano, mes))
-                        nova_data = nova_data.replace(year=ano, month=mes, day=dia)
-                    elif periodicidade == Periodicidade.SEMESTRAL.value:
-                        # Adiciona 6 meses
-                        mes = nova_data.month + 6
-                        ano = nova_data.year
-                        if mes > 12:
-                            mes -= 12
-                            ano += 1
-                        dia = min(nova_data.day, self._ultimo_dia_mes(ano, mes))
-                        nova_data = nova_data.replace(year=ano, month=mes, day=dia)
-                    elif periodicidade == Periodicidade.ANUAL.value:
-                        # Adiciona 1 ano
-                        ano = nova_data.year + 1
-                        mes = nova_data.month
-                        dia = min(nova_data.day, self._ultimo_dia_mes(ano, mes))
-                        nova_data = nova_data.replace(year=ano, day=dia)
-                    else:
-                        # Periodicidade desconhecida, não renova
-                        return False
-                
-                # Atualiza a assinatura com a nova data
-                self.editar(
-                    assinatura_id=assinatura.id,
-                    nome=assinatura.nome,
-                    data_vencimento=nova_data.strftime("%d/%m/%Y"),
-                    valor=assinatura.valor,
-                    periodicidade=assinatura.periodicidade,
-                    categoria=assinatura.tag,
-                    forma_pagamento=assinatura.forma_pagamento,
-                    usuario_compartilhado=assinatura.usuario_compartilhado,
-                    login=assinatura.login,
-                    senha=assinatura.senha,
-                    favorito=assinatura.favorito,
-                    status=assinatura.status
-                )
-                return True
-            
-            return False
-            
-        except ValueError:
-            # Se a data for inválida, não renova
-            return False
     
     def _ultimo_dia_mes(self, ano: int, mes: int) -> int:
         """Retorna o último dia do mês."""
@@ -647,7 +676,7 @@ class AssinaturasController:
             return False
         
         # Busca a assinatura
-        assinaturas = self.dao.get_assinaturas_by_user(self.user_id)
+        assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         assinatura = next((a for a in assinaturas if a.id == assinatura_id), None)
         
         if not assinatura or assinatura.status != StatusAssinatura.ATIVO:
@@ -700,7 +729,7 @@ class AssinaturasController:
         if not self.user_id:
             return
         
-        assinaturas = self.dao.get_assinaturas_by_user(self.user_id)
+        assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
         for assinatura in assinaturas:
             if assinatura.status == StatusAssinatura.ATIVO:
@@ -722,9 +751,6 @@ class AssinaturasController:
         status: StatusAssinatura = None
     ):
         """Edita uma assinatura existente."""
-        if not self.user_id:
-            return {'success': False, 'message': 'Usuário não identificado!'}
-        
         assinatura = self._criar_objeto_assinatura(
             assinatura_id=assinatura_id,
             nome=nome,
@@ -739,7 +765,7 @@ class AssinaturasController:
             favorito=favorito,
             status=status
         )
-        self.dao.update_assinatura(assinatura)
+        self.dao.atualizar_assinatura(assinatura)
         
         return self._finalizar_operacao(
             assinatura_id, 
@@ -747,15 +773,15 @@ class AssinaturasController:
             'Assinatura atualizada com sucesso!'
         )
     
-    def get_categorias_disponiveis(self):
+    def obter_categorias_disponiveis(self):
         """Retorna lista de categorias disponíveis."""
         return [c.value for c in CategoriaAssinatura]
     
-    def get_periodicidades(self):
+    def obter_periodicidades(self):
         """Retorna lista de periodicidades disponíveis."""
         return [p.value for p in Periodicidade]
     
-    def get_formas_pagamento(self):
+    def obter_formas_pagamento(self):
         """Retorna lista de formas de pagamento cadastradas."""
         return self.pagamentos_controller.obter_nomes_metodos_pagamento()
     
@@ -794,17 +820,7 @@ class AssinaturasController:
             }
         
         # Cria o compartilhamento
-        sucesso = self.dao.compartilhar_assinatura(
-            assinatura_id=assinatura_id,
-            user_id_proprietario=self.user_id,
-            user_id_compartilhado=user_id_compartilhado
-        )
-        
-        if not sucesso:
-            return {
-                'success': False,
-                'message': 'Esta assinatura já está compartilhada com este usuário!'
-            }
+        self.dao.compartilhar_assinatura(assinatura_id, self.user_id, user_id_compartilhado)
         
         return {
             'success': True,
