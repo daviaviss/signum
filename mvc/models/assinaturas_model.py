@@ -1,4 +1,6 @@
 from mvc.models.contratos_model import Contrato
+from mvc.models.assinatura_status_enum import StatusAssinatura
+from datetime import datetime
 
 
 class Assinatura(Contrato):
@@ -17,7 +19,9 @@ class Assinatura(Contrato):
         senha: str = "",
         favorito: int = 0,
         assinatura_id: int = None,
-        user_id: int = None
+        user_id: int = None,
+        status = None,
+        created_at: str = None
     ):
         # Se tag vier como enum, usa seu value
         tag_value = getattr(tag, "value", tag)
@@ -35,6 +39,18 @@ class Assinatura(Contrato):
         self.forma_pagamento = forma_pagamento
         self.login = login
         self.senha = senha
+        self.created_at = created_at if created_at else datetime.now().isoformat()
+        self.is_readonly = False  # Por padrão, não é readonly (será setado pelo DAO)
+        
+        # Define status
+        if status is None:
+            self.status = StatusAssinatura.ATIVO
+        elif isinstance(status, StatusAssinatura):
+            self.status = status
+        elif isinstance(status, str):
+            self.status = StatusAssinatura(status)
+        else:
+            self.status = StatusAssinatura.ATIVO
     
     @property
     def tipo(self) -> str:

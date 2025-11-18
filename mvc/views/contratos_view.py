@@ -6,7 +6,7 @@ from mvc.views.assinaturas_view import AssinaturasView
 
 
 class ContratosView(AssinaturasView):
-    """View para tela de Contratos, espelhando AssinaturasView."""
+    """View para tela de Contratos, espelhando AssinaturasView com funcionalidades avançadas."""
 
     def __init__(self, parent, controller=None):
         super().__init__(parent, controller)
@@ -113,18 +113,13 @@ class ContratosView(AssinaturasView):
         self.combo_periodicidade = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_periodicidade.pack(fill="x", padx=10, pady=(0, 10))
 
-        # Tag
-        tag_frame = tk.Frame(parent, bg=UI.BOX_BG)
-        tag_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
-        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
-        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
-        self.combo_tag = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
-        self.combo_tag.pack(fill="x", padx=10, pady=(0, 10))
-
-        # Usuário Compartilhado
-        tk.Label(parent, text="Compartilhado com (email):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", padx=10, pady=(5, 0))
-        self.entry_usuario_compartilhado = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
-        self.entry_usuario_compartilhado.pack(fill="x", padx=10, pady=(0, 10))
+        # Categoria (antigo Tag)
+        categoria_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        categoria_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        self.combo_categoria = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
+        self.combo_categoria.pack(fill="x", padx=10, pady=(0, 10))
 
         # Botão Adicionar
         self.btn_adicionar = tk.Button(
@@ -140,74 +135,278 @@ class ContratosView(AssinaturasView):
         )
         self.btn_adicionar.pack(fill="x", padx=10, pady=20)
 
-    def set_combo_values(self, periodicidades, tags):
+    def set_combo_values(self, periodicidades, categorias):
         """Define os valores dos comboboxes (sem formas de pagamento)."""
         self.combo_periodicidade['values'] = periodicidades
-        self.combo_tag['values'] = tags
+        self.combo_categoria['values'] = categorias
 
         # Selecionar primeiro item por padrão
         if periodicidades:
             self.combo_periodicidade.current(0)
-        if tags:
-            self.combo_tag.current(0)
+        if categorias:
+            self.combo_categoria.current(0)
+
+    def _create_treeview(self, parent):
+        """Cria o treeview para exibir os contratos."""
+        # Frame para o treeview e scrollbars
+        tree_container = tk.Frame(parent, bg=UI.BG_COLOR)
+        tree_container.pack(fill="both", expand=True)
+
+        # Scrollbars
+        scrollbar_y = ttk.Scrollbar(tree_container, orient="vertical")
+        scrollbar_x = ttk.Scrollbar(tree_container, orient="horizontal")
+
+        # Treeview (ID hidden but stored) - ADICIONADO Status
+        columns = ("id", "fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Categoria", "Status")
+        self.tree = ttk.Treeview(
+            tree_container,
+            columns=columns,
+            show="headings",
+            yscrollcommand=scrollbar_y.set,
+            xscrollcommand=scrollbar_x.set,
+            height=15,
+            displaycolumns=("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Categoria", "Status")
+        )
+
+        scrollbar_y.config(command=self.tree.yview)
+        scrollbar_x.config(command=self.tree.xview)
+
+        # Posicionar scrollbars e treeview
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar_y.grid(row=0, column=1, sticky="ns")
+        scrollbar_x.grid(row=1, column=0, sticky="ew")
+
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
+
+        # Definir colunas com comando de ordenação
+        self.tree.heading("fav", text="★", command=lambda: self._sort_column("fav"))
+        self.tree.heading("Nome", text="Nome", command=lambda: self._sort_column("Nome"))
+        self.tree.heading("Valor", text="Valor", command=lambda: self._sort_column("Valor"))
+        self.tree.heading("Vencimento", text="Vencimento", command=lambda: self._sort_column("Vencimento"))
+        self.tree.heading("Periodicidade", text="Periodicidade", command=lambda: self._sort_column("Periodicidade"))
+        self.tree.heading("Categoria", text="Categoria", command=lambda: self._sort_column("Categoria"))
+        self.tree.heading("Status", text="Status", command=lambda: self._sort_column("Status"))
+
+        # Inicializar dicionário de ordenação
+        self.sort_reverse = {}
+        for col in ("fav", "Nome", "Valor", "Vencimento", "Periodicidade", "Categoria", "Status"):
+            self.sort_reverse[col] = False
+
+        # Larguras das colunas
+        self.tree.column("fav", width=40, minwidth=40, anchor="center")
+        self.tree.column("Nome", width=120, minwidth=100)
+        self.tree.column("Valor", width=100, minwidth=80)
+        self.tree.column("Vencimento", width=100, minwidth=80)
+        self.tree.column("Periodicidade", width=100, minwidth=90)
+        self.tree.column("Categoria", width=100, minwidth=90)
+        self.tree.column("Status", width=80, minwidth=70, anchor="center")
+
+        # Bind double-click to show details
+        self.tree.bind("<Double-1>", self._on_double_click)
+        
+        # Bind single click on star column to toggle favorite
+        self.tree.bind("<Button-1>", self._on_tree_click)
+
+        # Botões - MOVIDO PARA CIMA DO TOTAL
+        btn_frame = tk.Frame(parent, bg=UI.BG_COLOR)
+        btn_frame.pack(fill="x", pady=10)
+        
+        self.btn_remover = tk.Button(
+            btn_frame,
+            text="Remover Selecionado",
+            font=UI.FONT_BUTTON,
+            bg="#ff6b6b",
+            fg="#ffffff",
+            activebackground="#ff5252",
+            activeforeground="#ffffff",
+            relief="flat",
+            command=self._on_remover
+        )
+        self.btn_remover.pack(side="right")
+
+        # Frame para exibir o total
+        total_frame = tk.Frame(parent, bg=UI.BOX_BG, relief="groove", bd=2)
+        total_frame.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(
+            total_frame,
+            text="Total de Contratos:",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047"
+        ).pack(side="left", padx=15, pady=10)
+        
+        self.label_total = tk.Label(
+            total_frame,
+            text="R$ 0,00",
+            font=("Inter", 14, "bold"),
+            bg=UI.BOX_BG,
+            fg="#4CAF50"
+        )
+        self.label_total.pack(side="right", padx=15, pady=10)
+        
+        # Frame para exibir a diferença (Meta - Total)
+        diferenca_frame = tk.Frame(parent, bg=UI.BOX_BG, relief="groove", bd=2)
+        diferenca_frame.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(
+            diferenca_frame,
+            text="Disponível (Meta - Total):",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047"
+        ).pack(side="left", padx=15, pady=10)
+        
+        self.label_diferenca = tk.Label(
+            diferenca_frame,
+            text="R$ 0,00",
+            font=("Inter", 14, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2196F3"
+        )
+        self.label_diferenca.pack(side="right", padx=15, pady=10)
+
+    def _refresh_treeview(self):
+        """Atualiza o treeview com os dados ordenados."""
+        # Limpa o treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Re-adiciona os contratos
+        for contrato in self.contratos_data:
+            fav_symbol = "★" if contrato.favorito == 1 else "☆"
+            status_value = contrato.status.value if hasattr(contrato.status, 'value') else contrato.status
+
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    contrato.id,
+                    fav_symbol,
+                    contrato.nome,
+                    f"R$ {contrato.valor:.2f}",
+                    contrato.data_vencimento,
+                    contrato.periodicidade,
+                    contrato.tag,  # Mantém como tag para compatibilidade com modelo
+                    status_value
+                )
+            )
+
+        # Calcula e atualiza o total usando o controller
+        if self.controller:
+            total = self.controller.calcular_total_contratos(self.contratos_data)
+            self._atualizar_total(total)
+            self._atualizar_diferenca()
+
+    def _atualizar_total(self, total: float):
+        """Atualiza o label com o valor total dos contratos."""
+        if hasattr(self, 'label_total'):
+            self.label_total.config(text=f"R$ {total:.2f}")
+    
+    def _atualizar_diferenca(self):
+        """Atualiza o label com a diferença entre meta e total de contratos ativos."""
+        if hasattr(self, 'label_diferenca') and self.controller:
+            diferenca = self.controller.calcular_diferenca_meta()
+            
+            # Muda a cor baseado no valor
+            if diferenca >= 0:
+                cor = "#4CAF50"  # Verde se positivo (dentro da meta)
+            else:
+                cor = "#ff6b6b"  # Vermelho se negativo (acima da meta)
+            
+            self.label_diferenca.config(text=f"R$ {diferenca:.2f}", fg=cor)
 
     def _on_adicionar(self):
-        """Callback quando o botão adicionar é clicado (sem pagamento/login/senha)."""
+        """Callback quando o botão adicionar é clicado (com validação)."""
         if self.controller:
-            try:
-                nome = self.entry_nome.get().strip()
-                valor = float(self.entry_valor.get().strip().replace(",", "."))
-                data = self.entry_data.get().strip()
-                periodicidade = self.combo_periodicidade.get()
-                tag = self.combo_tag.get()
-                usuario_compartilhado = self.entry_usuario_compartilhado.get().strip()
+            # Obtém dados do formulário via controller
+            data = self.controller.get_form_data()
+            
+            # Valida os dados (None para novo contrato)
+            validation = self.controller.validate_form_data(data, contrato_id=None)
+            
+            if not validation['success']:
+                # Usa método centralizado para exibir erro
+                self.controller.exibir_erro_validacao(validation)
+                return
+            
+            # Adiciona contrato
+            validated_data = validation['data']
+            resultado = self.controller.adicionar(
+                nome=validated_data['nome'],
+                data_vencimento=validated_data['data_vencimento'],
+                valor=validated_data['valor'],
+                periodicidade=validated_data['periodicidade'],
+                tag=validated_data['tag']  # Mantém como tag para compatibilidade
+            )
+            
+            # Verifica resultado
+            if resultado['success']:
+                # Limpa o formulário
+                self.controller.clear_form()
+                self.controller.mostrar_sucesso("Sucesso", resultado['message'])
+            else:
+                self.controller.mostrar_erro("Erro", resultado['message'])
 
-                if not nome or not data or not periodicidade or not tag:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
-                    return
-
-                # Validação de formato da data (DD/MM/AAAA)
-                try:
-                    datetime.strptime(data, "%d/%m/%Y")
-                except ValueError:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
-                    return
-
-                self.controller.adicionar(
-                    nome=nome,
-                    data_vencimento=data,
-                    valor=valor,
-                    periodicidade=periodicidade,
-                    tag=tag,
-                    usuario_compartilhado=usuario_compartilhado
-                )
-
-                # Limpar campos
-                self.entry_nome.delete(0, tk.END)
-                self.entry_valor.delete(0, tk.END)
-                self.entry_data.delete(0, tk.END)
-                self.entry_usuario_compartilhado.delete(0, tk.END)
-
-                messagebox.showinfo("Sucesso", "Contrato adicionado com sucesso!")
-
-            except ValueError:
-                # Valor inválido
-                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
+    def _on_remover(self):
+        """Callback quando o botão remover é clicado (com validação de status)."""
+        selected = self.tree.selection()
+        if not selected:
+            self.controller.mostrar_aviso("Aviso", "Selecione um contrato para remover!")
+            return
+        
+        item = self.tree.item(selected[0])
+        values = item.get('values')
+        if values:
+            contrato_id = values[0]
+            
+            if self.controller:
+                if self.controller.confirmar_acao(
+                    "Confirmar Remoção",
+                    "Deseja realmente remover este contrato?\n\nEsta ação não pode ser desfeita."
+                ):
+                    resultado = self.controller.remover(contrato_id)
+                    
+                    if resultado['success']:
+                        self.controller.mostrar_sucesso("Sucesso", resultado['message'])
+                    else:
+                        self.controller.mostrar_erro("Não é possível remover", resultado['message'])
 
     def _show_detail_modal(self, contrato):
-        """Mostra detalhes e permite editar um contrato (sem pagamento/login/senha)."""
+        """Mostra modal com todos os detalhes do contrato."""
         modal = tk.Toplevel(self.parent)
         modal.title("Detalhes do Contrato")
-        modal.configure(bg=UI.BOX_BG)
-        modal.geometry("600x500")
+        modal.geometry("500x600")
+        modal.configure(bg=UI.BG_COLOR)
+        modal.transient(self.parent)
+        modal.grab_set()
 
-        # Conteúdo
-        content_frame = tk.Frame(modal, bg=UI.BOX_BG)
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Centralizar modal
+        modal.update_idletasks()
+        x = (modal.winfo_screenwidth() // 2) - (500 // 2)
+        y = (modal.winfo_screenheight() // 2) - (600 // 2)
+        modal.geometry(f"+{x}+{y}")
 
-        # Cabeçalho com estrela e nome
+        # Container com scroll
+        canvas = tk.Canvas(modal, bg=UI.BOX_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(modal, orient="vertical", command=canvas.yview)
+        content_frame = tk.Frame(canvas, bg=UI.BOX_BG, padx=30, pady=30)
+
+        content_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Título com favorito
         title_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
-        title_frame.pack(fill="x", pady=(0, 10))
+        title_frame.pack(pady=(0, 10))
 
         fav_symbol = "★" if contrato.favorito == 1 else "☆"
         tk.Label(
@@ -227,14 +426,48 @@ class ContratosView(AssinaturasView):
             fg="#2e3047"
         ).pack(side="left")
 
+        # Status com bolinha colorida
+        status_value = contrato.status.value if hasattr(contrato.status, 'value') else contrato.status
+        status_color = "#4CAF50" if status_value == "Ativo" else "#F44336"
+
+        status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        status_frame.pack(fill="x", pady=10)
+
+        tk.Label(
+            status_frame,
+            text="Status:",
+            font=("Inter", 12, "bold"),
+            bg=UI.BOX_BG,
+            fg="#2e3047",
+            anchor="w"
+        ).pack(side="left", padx=(0, 10))
+
+        # Bolinha colorida
+        tk.Label(
+            status_frame,
+            text="●",
+            font=("Inter", 16),
+            bg=UI.BOX_BG,
+            fg=status_color,
+            anchor="w"
+        ).pack(side="left", padx=(0, 5))
+
+        tk.Label(
+            status_frame,
+            text=status_value,
+            font=("Inter", 12),
+            bg=UI.BOX_BG,
+            fg="#555",
+            anchor="w"
+        ).pack(side="left")
+
         # Detalhes
         details = [
             ("Nome:", contrato.nome),
             ("Valor:", f"R$ {contrato.valor:.2f}"),
             ("Data de Vencimento:", contrato.data_vencimento),
             ("Periodicidade:", contrato.periodicidade),
-            ("Categoria:", contrato.tag),
-            ("Compartilhado com:", contrato.usuario_compartilhado or "Ninguém"),
+            ("Categoria:", contrato.tag),  # Mantém como tag para compatibilidade
         ]
 
         for label, value in details:
@@ -257,21 +490,15 @@ class ContratosView(AssinaturasView):
                 bg=UI.BOX_BG,
                 fg="#555",
                 anchor="w"
-            ).pack(side="left")
+            ).pack(side="left", fill="x", expand=True)
 
-        # Botões de ação
-        btns = tk.Frame(content_frame, bg=UI.BOX_BG)
-        btns.pack(fill="x", pady=10)
-
-        def fechar():
-            modal.destroy()
-
-        def editar():
-            modal.destroy()
-            self._open_edit_modal(contrato)
-
+        # Botões
+        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        btn_frame.pack(pady=(30, 0), fill="x")
+        
+        # Todos os contratos podem ser editados (compartilhamento removido)
         tk.Button(
-            btns,
+            btn_frame,
             text="Editar",
             font=UI.FONT_BUTTON,
             bg="#4CAF50",
@@ -279,11 +506,11 @@ class ContratosView(AssinaturasView):
             activebackground="#45a049",
             activeforeground="#ffffff",
             relief="flat",
-            command=editar
+            command=lambda: [modal.destroy(), self._show_edit_modal(contrato)]
         ).pack(side="left", fill="x", expand=True, padx=(0, 5))
-
+        
         tk.Button(
-            btns,
+            btn_frame,
             text="Fechar",
             font=UI.FONT_BUTTON,
             bg=UI.BTN_BG,
@@ -291,15 +518,21 @@ class ContratosView(AssinaturasView):
             activebackground=UI.BTN_ACTIVE_BG,
             activeforeground=UI.BTN_ACTIVE_FG,
             relief="flat",
-            command=fechar
+            command=modal.destroy
         ).pack(side="left", fill="x", expand=True, padx=(5, 0))
 
-    def _open_edit_modal(self, contrato):
-        """Abre modal de edição de contrato (sem pagamento/login/senha)."""
+    def _show_edit_modal(self, contrato):
+        """Mostra modal para editar um contrato (com validação)."""
         modal = tk.Toplevel(self.parent)
         modal.title("Editar Contrato")
         modal.configure(bg=UI.BOX_BG)
         modal.geometry("600x600")
+
+        # Centralizar modal
+        modal.update_idletasks()
+        x = (modal.winfo_screenwidth() // 2) - (600 // 2)
+        y = (modal.winfo_screenheight() // 2) - (600 // 2)
+        modal.geometry(f"+{x}+{y}")
 
         content_frame = tk.Frame(modal, bg=UI.BOX_BG)
         content_frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -347,99 +580,131 @@ class ContratosView(AssinaturasView):
         combo_periodicidade.set(contrato.periodicidade)
         combo_periodicidade.pack(fill="x", pady=(0, 10))
 
-        tag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
-        tag_frame.pack(anchor="w", pady=(5, 0), fill="x")
-        tk.Label(tag_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
-        tk.Label(tag_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
-        combo_tag = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
-        combo_tag['values'] = self.combo_tag['values']
-        combo_tag.set(contrato.tag)
-        combo_tag.pack(fill="x", pady=(0, 10))
+        categoria_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        categoria_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        combo_categoria = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_categoria['values'] = self.combo_categoria['values']
+        combo_categoria.set(contrato.tag)  # Mantém como tag para compatibilidade
+        combo_categoria.pack(fill="x", pady=(0, 10))
 
-        # Usuário Compartilhado
-        tk.Label(content_frame, text="Compartilhado com (email):", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(anchor="w", pady=(5, 0))
-        entry_usuario = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
-        entry_usuario.insert(0, contrato.usuario_compartilhado or "")
-        entry_usuario.pack(fill="x", pady=(0, 10))
-
-        # Botões
-        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
-        btn_frame.pack(fill="x", pady=10)
-
-        def cancelar():
-            modal.destroy()
+        # Status
+        status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        status_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(status_frame, text="Status: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(status_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        combo_status = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_status['values'] = ["Ativo", "Encerrado"]
+        status_value = contrato.status.value if hasattr(contrato.status, 'value') else str(contrato.status)
+        combo_status.set(status_value)
+        combo_status.pack(fill="x", pady=(0, 10))
 
         def salvar_edicao():
-            try:
-                nome = entry_nome.get().strip()
-                valor = float(entry_valor.get().strip().replace(",", "."))
-                data = entry_data.get().strip()
-                periodicidade = combo_periodicidade.get()
-                tag = combo_tag.get()
-                usuario_compartilhado = entry_usuario.get().strip()
-
-                if not nome or not data or not periodicidade or not tag:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
-                    return
-
-                # Validação de formato da data (DD/MM/AAAA)
-                try:
-                    datetime.strptime(data, "%d/%m/%Y")
-                except ValueError:
-                    messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
-                    return
-
-                if self.controller:
-                    self.controller.editar(
-                        contrato_id=contrato.id,
-                        nome=nome,
-                        data_vencimento=data,
-                        valor=valor,
-                        periodicidade=periodicidade,
-                        tag=tag,
-                        usuario_compartilhado=usuario_compartilhado,
-                        favorito=contrato.favorito
-                    )
-                    modal.destroy()
-                    messagebox.showinfo("Sucesso", "Contrato atualizado com sucesso!")
-            except ValueError:
-                # Valor inválido na edição
-                messagebox.showerror("Erro", "Preencha todos os campos obrigatórios com o padrão adequado!")
-
-        tk.Button(
-            btn_frame,
-            text="Cancelar",
-            font=UI.FONT_BUTTON,
-            bg=UI.BOX_DESTAQUE_BG,
-            fg="black",
-            relief="flat",
-            command=cancelar
-        ).pack(side="right", padx=5)
-
+            # Coleta dados do modal
+            data = {
+                'nome': entry_nome.get().strip(),
+                'valor': entry_valor.get().strip().replace(',', '.'),
+                'data_vencimento': entry_data.get().strip(),
+                'periodicidade': combo_periodicidade.get(),
+                'tag': combo_categoria.get(),  # Mantém como tag para compatibilidade
+            }
+            
+            # Valida os dados (passa contrato_id para permitir mesmo nome na edição)
+            validation = self.controller.validate_form_data(data, contrato_id=contrato.id)
+            
+            if not validation['success']:
+                self.controller.exibir_erro_validacao(validation)
+                return
+            
+            validated_data = validation['data']
+            
+            # Importa o enum de status
+            from mvc.models.contrato_status_enum import StatusContrato
+            
+            if self.controller:
+                resultado = self.controller.editar(
+                    contrato_id=contrato.id,
+                    nome=validated_data['nome'],
+                    data_vencimento=validated_data['data_vencimento'],
+                    valor=validated_data['valor'],
+                    periodicidade=validated_data['periodicidade'],
+                    tag=validated_data['tag'],  # Mantém como tag para compatibilidade
+                    favorito=contrato.favorito,
+                    status=StatusContrato(combo_status.get())
+                )
+                modal.destroy()
+                
+                if resultado['success']:
+                    self.controller.mostrar_sucesso("Sucesso", resultado['message'])
+                else:
+                    self.controller.mostrar_erro("Erro", resultado['message'])
+        
+        # Botões
+        btn_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        btn_frame.pack(pady=(20, 0), fill="x")
+        
         tk.Button(
             btn_frame,
             text="Salvar",
             font=UI.FONT_BUTTON,
-            bg=UI.BTN_BG,
-            fg=UI.BTN_FG,
+            bg="#4CAF50",
+            fg="#ffffff",
+            activebackground="#45a049",
+            activeforeground="#ffffff",
             relief="flat",
             command=salvar_edicao
-        ).pack(side="right", padx=5)
+        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        tk.Button(
+            btn_frame,
+            text="Cancelar",
+            font=UI.FONT_BUTTON,
+            bg="#ff6b6b",
+            fg="#ffffff",
+            activebackground="#ff5252",
+            activeforeground="#ffffff",
+            relief="flat",
+            command=modal.destroy
+        ).pack(side="left", fill="x", expand=True, padx=(5, 0))
 
-    def _on_remover(self):
-        """Callback quando o botão remover é clicado (texto ajustado)."""
+    def _on_double_click(self, event):
+        """Callback quando há double click no treeview."""
         selected = self.tree.selection()
-        if not selected:
-            messagebox.showwarning("Aviso", "Selecione um contrato para remover!")
+        if selected:
+            item = self.tree.item(selected[0])
+            values = item.get('values')
+            if values and len(values) >= 7:  # Verifica se tem dados suficientes
+                contrato_id = values[0]
+                
+                # Encontra o contrato nos dados
+                for contrato in self.contratos_data:
+                    if str(contrato.id) == str(contrato_id):
+                        self._show_detail_modal(contrato)
+                        break
+    
+    def _on_tree_click(self, event):
+        """Callback quando há click no treeview para toggle favorito."""
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "heading":
             return
-
-        item = self.tree.item(selected[0])
-        values = item.get('values')
-        if values:
-            contrato_id = values[0]
-
-            if self.controller:
-                confirm = messagebox.askyesno("Confirmar", "Deseja realmente remover este contrato?")
-                if confirm:
-                    self.controller.remover(contrato_id)
-                    messagebox.showinfo("Sucesso", "Contrato removido com sucesso!")
+        
+        column = self.tree.identify_column(event.x)
+        row_id = self.tree.identify_row(event.y)
+        
+        # Check if click was on favorite column (#1 = fav column)
+        if column == "#1" and row_id:
+            item = self.tree.item(row_id)
+            values = item.get('values')
+            if values:
+                contrato_id = values[0]  # ID is hidden but still in values
+                if self.controller:
+                    self.controller.toggle_favorito(contrato_id)
+    
+    def atualizar_lista(self, contratos):
+        """Atualiza a lista de contratos no treeview."""
+        # Store full data
+        self.contratos_data = contratos
+        
+        # Refresh treeview
+        self._refresh_treeview()

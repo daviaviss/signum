@@ -14,6 +14,7 @@ class Contrato:
         contrato_id: int = None,
         user_id: int = None,
         status: StatusContrato = StatusContrato.ATIVO,
+
     ):
         self.id = contrato_id
         self.user_id = user_id
@@ -26,6 +27,7 @@ class Contrato:
         self.favorito = favorito
         self.status = status
 
+
     @property
     def tipo(self) -> str:
         """Tipo do registro; por padrão, 'contrato'."""
@@ -33,4 +35,3 @@ class Contrato:
 
     def __repr__(self):
         return f"<Contrato id={self.id} nome={self.nome} valor={self.valor}>"
-    
