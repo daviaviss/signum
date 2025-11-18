@@ -785,9 +785,71 @@ class AssinaturasController:
         """Retorna lista de formas de pagamento cadastradas."""
         return self.pagamentos_controller.obter_nomes_metodos_pagamento()
     
+    def _validar_email_compartilhamento_vazio(self, email_compartilhado: str):
+        """
+        Valida se o email de compartilhamento está vazio.
+        
+        Returns:
+            dict: {'valido': bool, 'resultado': dict ou None}
+        """
+        if not email_compartilhado or not email_compartilhado.strip():
+            return {
+                'valido': True,
+                'resultado': {'success': True, 'message': ''}
+            }
+        return {'valido': False, 'resultado': None}
+    
+    def _validar_usuario_existe(self, email_compartilhado: str, user_id_compartilhado: int):
+        """
+        Valida se o usuário com o email informado existe no sistema.
+        
+        Returns:
+            dict: {'valido': bool, 'resultado': dict ou None}
+        """
+        if not user_id_compartilhado:
+            return {
+                'valido': False,
+                'resultado': {
+                    'success': False,
+                    'message': f'Usuário com email "{email_compartilhado}" não encontrado no sistema!'
+                }
+            }
+        return {'valido': True, 'resultado': None}
+    
+    def _validar_nao_compartilhar_consigo_mesmo(self, user_id_compartilhado: int):
+        """
+        Valida se o usuário não está tentando compartilhar consigo mesmo.
+        
+        Returns:
+            dict: {'valido': bool, 'resultado': dict ou None}
+        """
+        if user_id_compartilhado == self.user_id:
+            return {
+                'valido': False,
+                'resultado': {
+                    'success': False,
+                    'message': 'Você não pode compartilhar uma assinatura com você mesmo!'
+                }
+            }
+        return {'valido': True, 'resultado': None}
+    
+    def _criar_compartilhamento_assinatura(self, assinatura_id: int, user_id_compartilhado: int, email_compartilhado: str):
+        """
+        Cria o compartilhamento da assinatura no banco de dados.
+        
+        Returns:
+            dict: {'success': bool, 'message': str}
+        """
+        self.dao.compartilhar_assinatura(assinatura_id, self.user_id, user_id_compartilhado)
+        return {
+            'success': True,
+            'message': f'Assinatura compartilhada com sucesso com {email_compartilhado}!'
+        }
+    
     def processar_compartilhamento(self, assinatura_id: int, email_compartilhado: str):
         """
         Processa o compartilhamento de uma assinatura com outro usuário.
+        Valida email, existência do usuário e executa compartilhamento.
         
         Args:
             assinatura_id: ID da assinatura a compartilhar
@@ -796,33 +858,28 @@ class AssinaturasController:
         Returns:
             dict: {'success': bool, 'message': str}
         """
-        if not email_compartilhado or not email_compartilhado.strip():
-            # Campo vazio = sem compartilhamento
-            return {'success': True, 'message': ''}
+        # 1. Valida se email está vazio (retorna sucesso se vazio)
+        validacao = self._validar_email_compartilhamento_vazio(email_compartilhado)
+        if validacao['valido']:
+            return validacao['resultado']
         
         email_compartilhado = email_compartilhado.strip().lower()
         
-        # Busca o ID do usuário pelo email
+        # 2. Busca ID do usuário pelo email
         from dao import UserDAO
         user_dao = UserDAO()
         user_id_compartilhado = user_dao.get_user_id_by_email(email_compartilhado)
         
-        if not user_id_compartilhado:
-            return {
-                'success': False,
-                'message': f'Usuário com email "{email_compartilhado}" não encontrado no sistema!'
-            }
+        # 3. Valida se usuário existe
+        validacao = self._validar_usuario_existe(email_compartilhado, user_id_compartilhado)
+        if not validacao['valido']:
+            return validacao['resultado']
         
-        if user_id_compartilhado == self.user_id:
-            return {
-                'success': False,
-                'message': 'Você não pode compartilhar uma assinatura com você mesmo!'
-            }
+        # 4. Valida se não está compartilhando consigo mesmo
+        validacao = self._validar_nao_compartilhar_consigo_mesmo(user_id_compartilhado)
+        if not validacao['valido']:
+            return validacao['resultado']
         
-        # Cria o compartilhamento
-        self.dao.compartilhar_assinatura(assinatura_id, self.user_id, user_id_compartilhado)
-        
-        return {
-            'success': True,
-            'message': f'Assinatura compartilhada com sucesso com {email_compartilhado}!'
-        }
+        # 5. Cria o compartilhamento
+        resultado = self._criar_compartilhamento_assinatura(assinatura_id, user_id_compartilhado, email_compartilhado)
+        return resultado
