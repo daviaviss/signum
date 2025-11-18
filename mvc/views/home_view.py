@@ -262,7 +262,7 @@ class HomeView:
 
         contratos_view = ContratosView(content)
         user_id = self.usuario_controller.usuario.id if self.usuario_controller and hasattr(self.usuario_controller, 'usuario') else None
-        self.contratos_controller = ContratosController(contratos_view, user_id)
+        self.contratos_controller = ContratosController(contratos_view, user_id, self.usuario_controller)
 
     def show_home_screen(self):
         """Recarrega a home screen."""
