@@ -341,7 +341,7 @@ class AssinaturasDAO:
         conn.execute(query)
         conn.commit()
     
-    def add_assinatura(self, assinatura):
+    def adicionar_assinatura(self, assinatura):
         """Adiciona uma nova assinatura ao banco."""
         query = """
             INSERT INTO assinaturas 
@@ -371,7 +371,7 @@ class AssinaturasDAO:
             conn.commit()
             return cursor.lastrowid
     
-    def get_assinaturas_by_user(self, user_id: int) -> List:
+    def obter_assinaturas_por_usuario(self, user_id: int) -> List:
         """Retorna todas as assinaturas de um usuário, favoritas primeiro."""
         from mvc.models.assinaturas_model import Assinatura
         with sqlite3.connect(self.db_file) as conn:
@@ -408,7 +408,7 @@ class AssinaturasDAO:
             
             return assinaturas
     
-    def toggle_favorito(self, assinatura_id: int):
+    def alternar_favorito(self, assinatura_id: int):
         """Alterna o status de favorito."""
         with sqlite3.connect(self.db_file) as conn:
             # Get current status
@@ -425,7 +425,7 @@ class AssinaturasDAO:
                 )
                 conn.commit()
     
-    def delete_assinatura(self, assinatura_id: int):
+    def deletar_assinatura(self, assinatura_id: int):
         """Remove uma assinatura do banco."""
         with sqlite3.connect(self.db_file) as conn:
             conn.execute(
@@ -434,7 +434,7 @@ class AssinaturasDAO:
             )
             conn.commit()
     
-    def update_assinatura(self, assinatura):
+    def atualizar_assinatura(self, assinatura):
         """Atualiza uma assinatura existente."""
         query = """
             UPDATE assinaturas
@@ -473,20 +473,23 @@ class AssinaturasDAO:
             user_id_compartilhado: ID do usuário que receberá acesso readonly
         """
         with sqlite3.connect(self.db_file) as conn:
-            try:
-                conn.execute(
-                    """
-                    INSERT INTO assinaturas_compartilhadas 
-                    (assinatura_id, user_id_proprietario, user_id_compartilhado, compartilhado_em)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (assinatura_id, user_id_proprietario, user_id_compartilhado, datetime.now().isoformat())
-                )
-                conn.commit()
-                return True
-            except sqlite3.IntegrityError:
-                # Já está compartilhado com este usuário
-                return False
+            # Primeiro remove compartilhamento existente (se houver)
+            conn.execute(
+                "DELETE FROM assinaturas_compartilhadas WHERE assinatura_id = ? AND user_id_compartilhado = ?",
+                (assinatura_id, user_id_compartilhado)
+            )
+            
+            # Depois insere o novo compartilhamento
+            conn.execute(
+                """
+                INSERT INTO assinaturas_compartilhadas 
+                (assinatura_id, user_id_proprietario, user_id_compartilhado, compartilhado_em)
+                VALUES (?, ?, ?, ?)
+                """,
+                (assinatura_id, user_id_proprietario, user_id_compartilhado, datetime.now().isoformat())
+            )
+            conn.commit()
+            return True
     
     def remover_compartilhamento(self, assinatura_id: int, user_id_compartilhado: int):
         """Remove um compartilhamento."""
@@ -497,7 +500,7 @@ class AssinaturasDAO:
             )
             conn.commit()
     
-    def get_assinaturas_compartilhadas_comigo(self, user_id: int) -> List:
+    def obter_assinaturas_compartilhadas_comigo(self, user_id: int) -> List:
         """
         Retorna assinaturas que foram compartilhadas COMIGO (readonly).
         
