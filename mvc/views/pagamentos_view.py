@@ -428,9 +428,16 @@ class PagamentosView:
             self._mostrar_erro("Forma de pagamento é obrigatória!")
             return False, None
 
-
         # ÚNICO validador/definição necessária para a data:
         data = data_entry.get_date() if tem_vencimento.get() else None
+        
+        # Verifica se a data não é passada
+        if data is not None:
+            from datetime import date as date_class
+            hoje = date_class.today()
+            if data <= hoje:
+                self._mostrar_erro("A data de vencimento não pode ser hoje ou uma data passada!")
+                return False, None
 
         return True, data
 
