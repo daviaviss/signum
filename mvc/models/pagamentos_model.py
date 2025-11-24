@@ -6,6 +6,9 @@ class PagamentoModel:
     """Modelo para representar informações de pagamento."""
     
     def __init__(self, nome: str, vencimento: date, forma_de_pagamento: FormaPagamento):
+        self._nome = None
+        self._vencimento = None
+        self._forma_de_pagamento = None
         self.nome = nome
         self.vencimento = vencimento
         self.forma_de_pagamento = forma_de_pagamento
