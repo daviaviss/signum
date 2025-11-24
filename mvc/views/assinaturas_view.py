@@ -389,6 +389,7 @@ class AssinaturasView:
             
             self.label_diferenca.config(text=f"R$ {diferenca:.2f}", fg=cor)
     
+    # O VSCode coloca esse event como não utilizado, mas ele é necessário
     def _on_double_click(self, event):
         """Mostra detalhes completos quando linha é clicada duas vezes."""
         selected = self.tree.selection()
