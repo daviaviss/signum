@@ -1,7 +1,7 @@
 import os
 import tkinter as tk
 from mvc.models.usuario_login_model import UserLoginModel
-from mvc.views.usuario_login_view import UserLoginView
+from mvc.controllers.navegacao_controller import NavegacaoController
 from mvc.controllers.usuario_login_controller import UserLoginController
 from mvc.controllers.usuario_controller import UsuarioController 
 
@@ -11,11 +11,11 @@ os.chdir(os.path.dirname(__file__))
 if __name__ == "__main__":
     root = tk.Tk()
     model = UserLoginModel()
-    view = UserLoginView(root)
-    controller = UserLoginController(model, view)
+    navegacao = NavegacaoController(root)
+    controller = UserLoginController(model, navegacao)
     
     # passa o model para o controller de usuário para que ele saiba quem está logado
     usuario_controller = UsuarioController(model)
-    view.usuario_controller = usuario_controller  # passa o controller para a view
-    view.home_view.on_logout = controller.logout
+    navegacao.usuario_controller = usuario_controller  # passa o controller para a navegação
+    navegacao.home_view.on_logout = controller.logout
     root.mainloop()

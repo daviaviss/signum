@@ -1,15 +1,16 @@
 class UserLoginController:
     """
-    Controller connects View and Model.
-    Handles user input events and updates DB through the Model.
+    Controller para funcionalidade de login e registro.
+    Gerencia eventos de entrada do usuário e atualiza o BD através do Model.
+    Trabalha com NavegacaoController para gerenciar transições de tela.
     """
-    def __init__(self, model, view):
+    def __init__(self, model, navegacao):
         self.model = model
-        self.view = view
+        self.navegacao = navegacao
 
         # Bind buttons
-        self.view.register_button.config(command=self.handle_register)
-        self.view.login_button.config(command=self.handle_login)
+        self.navegacao.register_button.config(command=self.handle_register)
+        self.navegacao.login_button.config(command=self.handle_login)
 
     def handle_register(self):
         self.register()
@@ -19,50 +20,50 @@ class UserLoginController:
 
     def register(self):
         # Validate fields first
-        is_valid, error_message = self.view.register_view.validate_fields()
+        is_valid, error_message = self.navegacao.register_view.validate_fields()
         if not is_valid:
-            self.view.show_error("Erro de Validação", error_message)
+            self.navegacao.mostrar_erro("Erro de Validação", error_message)
             return
 
         # Get validated values
-        nome = self.view.register_view.get_field_value(self.view.reg_name)
-        email = self.view.register_view.get_field_value(self.view.reg_email)
-        senha = self.view.register_view.get_field_value(self.view.reg_password)
+        nome = self.navegacao.register_view.get_field_value(self.navegacao.reg_name)
+        email = self.navegacao.register_view.get_field_value(self.navegacao.reg_email)
+        senha = self.navegacao.register_view.get_field_value(self.navegacao.reg_password)
 
         if self.model.register_user(nome, email, senha):
-            self.view.show_message("Sucesso", "Usuário registrado com sucesso!")
-            self.view.show_login_screen()
+            self.navegacao.mostrar_mensagem("Sucesso", "Usuário registrado com sucesso!")
+            self.navegacao.mostrar_tela_login()
         else:
-            self.view.show_error("Erro", "Email já cadastrado.")
+            self.navegacao.mostrar_erro("Erro", "Email já cadastrado.")
 
     def login(self):
         # Validate fields first
-        is_valid, error_message = self.view.login_view.validate_fields()
+        is_valid, error_message = self.navegacao.login_view.validate_fields()
         if not is_valid:
-            self.view.show_error("Erro de Validação", error_message)
+            self.navegacao.mostrar_erro("Erro de Validação", error_message)
             return
 
         # Get validated values
-        email = self.view.login_view.get_field_value(self.view.login_email)
-        senha = self.view.login_view.get_field_value(self.view.login_password)
+        email = self.navegacao.login_view.get_field_value(self.navegacao.login_email)
+        senha = self.navegacao.login_view.get_field_value(self.navegacao.login_password)
 
         if self.model.login_user(email, senha):
             # Vincula o usuário ao controller usado pela tela Metas
-            uc = getattr(self.view, "usuario_controller", None)
+            uc = getattr(self.navegacao, "usuario_controller", None)
             if uc is not None:
                 usuario = uc.carregar_por_email(email)  # carrega do DAO com limites
                 if usuario is None:
-                    self.view.show_error("Erro", "Usuário não encontrado no banco após login.")
+                    self.navegacao.mostrar_erro("Erro", "Usuário não encontrado no banco após login.")
                     return
 
             # Agora o uc.usuario tem limite_assinaturas/limite_contratos carregados
-            self.view.show_home_screen()
+            self.navegacao.mostrar_tela_home()
         else:
-            self.view.show_error("Erro", "Email ou senha incorretos.")
+            self.navegacao.mostrar_erro("Erro", "Email ou senha incorretos.")
 
     def logout(self):
         """Efetua logout e retorna à tela de login."""
-        uc = getattr(self.view, "usuario_controller", None)
+        uc = getattr(self.navegacao, "usuario_controller", None)
         if uc is not None:
             uc.logout()
-        self.view.show_login_screen()
+        self.navegacao.mostrar_tela_login()

@@ -2,7 +2,6 @@
 from typing import Optional
 from dao import UserDAO
 from mvc.models.usuario_model import Usuario
-import hashlib
 
 
 class UsuarioController:

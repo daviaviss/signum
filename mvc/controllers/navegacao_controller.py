@@ -6,10 +6,10 @@ from mvc.views.login_view import LoginView
 from mvc.views.home_view import HomeView
 
 
-
-class UserLoginView:
+class NavegacaoController:
     """
-    Main coordinator for login/register/home screens.
+    Controller responsável por gerenciar a navegação entre as telas de login, registro e home.
+    Coordena o fluxo principal da aplicação e transições entre telas.
     """
 
     def __init__(self, root):
@@ -19,41 +19,40 @@ class UserLoginView:
         self.root.resizable(False, False)
         self.root.configure(bg=UI.BG_COLOR)
 
-        # Create the three views
-        self.register_view = RegisterView(root, self.show_login_screen)
-        self.login_view = LoginView(root, self.show_register_screen)
+        # Cria as três views
+        self.register_view = RegisterView(root, self.mostrar_tela_login)
+        self.login_view = LoginView(root, self.mostrar_tela_registro)
         self.home_view = HomeView(root)
 
+        # Inicia com a tela de login
+        self.mostrar_tela_login()
 
-        # Start with login screen
-        self.show_login_screen()
-
-    def show_register_screen(self):
+    def mostrar_tela_registro(self):
         self.login_view.hide()
         self.home_view.hide()
         self.register_view.show()
 
-    def show_login_screen(self):
+    def mostrar_tela_login(self):
         self.register_view.hide()
         self.home_view.hide()
         self.login_view.show()
 
-    def show_home_screen(self):
+    def mostrar_tela_home(self):
         self.register_view.hide()
         self.login_view.hide()
-        # Pass usuario_controller to home_view if it exists
+        # Passa usuario_controller para home_view se existir
         if hasattr(self, 'usuario_controller'):
             self.home_view.usuario_controller = self.usuario_controller
         self.home_view.show()
         self.home_view.show_home_screen()
 
-    def show_message(self, title, message):
+    def mostrar_mensagem(self, title, message):
         messagebox.showinfo(title, message)
 
-    def show_error(self, title, message):
+    def mostrar_erro(self, title, message):
         messagebox.showerror(title, message)
 
-    # Expose entry fields for controller binding
+    # Expõe campos de entrada para vinculação com controller
     @property
     def reg_name(self):
         return self.register_view.reg_name
