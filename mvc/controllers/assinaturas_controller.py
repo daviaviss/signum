@@ -71,6 +71,10 @@ class AssinaturasController:
         """Exibe erro de nome duplicado."""
         self.mostrar_erro("Nome Duplicado", mensagem)
     
+    def _exibir_erro_compartilhamento_proprio(self, mensagem: str):
+        """Exibe erro de tentativa de compartilhar consigo mesmo."""
+        self.mostrar_erro("Compartilhamento Inválido", mensagem)
+    
     def _exibir_erro_generico(self, mensagem: str):
         """Exibe erro genérico de validação."""
         self.mostrar_erro("Erro de Validação", mensagem)
@@ -87,7 +91,8 @@ class AssinaturasController:
             'INVALID_NUMBER': self._exibir_erro_valor_invalido,
             'INVALID_DATE_FORMAT': self._exibir_erro_data_invalida,
             'INVALID_DATE_PAST': self._exibir_erro_data_invalida,
-            'DUPLICATE_NAME': self._exibir_erro_nome_duplicado
+            'DUPLICATE_NAME': self._exibir_erro_nome_duplicado,
+            'SELF_SHARE': self._exibir_erro_compartilhamento_proprio
         }
     
     def exibir_erro_validacao(self, validacao):
@@ -395,6 +400,38 @@ class AssinaturasController:
         
         return {'success': True, 'error_code': 'OK', 'data': data}
     
+    def _validar_compartilhamento_nao_proprio(self, data):
+        """
+        Valida se o usuário não está tentando compartilhar consigo mesmo.
+        
+        Args:
+            data: Dict com os dados do formulário
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None}
+        """
+        usuario_compartilhado = data.get('usuario_compartilhado', '').strip().lower()
+        
+        # Se não há email de compartilhamento, validação passa
+        if not usuario_compartilhado:
+            return {'success': True, 'error_code': 'OK', 'data': data}
+        
+        # Busca o user_id do email de compartilhamento
+        from dao import UserDAO
+        user_dao = UserDAO()
+        user_id_compartilhado = user_dao.get_user_id_by_email(usuario_compartilhado)
+        
+        # Verifica se está tentando compartilhar consigo mesmo
+        if user_id_compartilhado == self.user_id:
+            return {
+                'success': False,
+                'message': 'Você não pode compartilhar uma assinatura com você mesmo!',
+                'error_code': 'SELF_SHARE',
+                'data': None
+            }
+        
+        return {'success': True, 'error_code': 'OK', 'data': data}
+    
     def validar_dados_formulario(self, data, assinatura_id=None):
         """
         Valida os dados do formulário na ordem especificada:
@@ -403,6 +440,7 @@ class AssinaturasController:
         3. Data inválida (formato)
         4. Data < data_atual
         5. Nome duplicado
+        6. Compartilhamento consigo mesmo
         
         Args:
             data: Dict com os dados do formulário
@@ -435,6 +473,11 @@ class AssinaturasController:
         
         # 5. VALIDAR SE O NOME É ÚNICO
         validacao = self._validar_nome_unico(data, assinatura_id)
+        if not validacao['success']:
+            return validacao
+        
+        # 6. VALIDAR SE NÃO ESTÁ COMPARTILHANDO CONSIGO MESMO
+        validacao = self._validar_compartilhamento_nao_proprio(data)
         if not validacao['success']:
             return validacao
         
@@ -791,39 +834,6 @@ class AssinaturasController:
         """Retorna lista de formas de pagamento cadastradas."""
         return self.pagamentos_controller.obter_nomes_metodos_pagamento()
     
-    def _validar_compartilhamento(self, email_compartilhado: str):
-        """
-        Valida os dados de compartilhamento.
-        Verifica se não está compartilhando consigo mesmo.
-        
-        Args:
-            email_compartilhado: Email já normalizado (stripped e lowercase)
-        
-        Returns:
-            dict: {'success': bool, 'message': str, 'user_id': int ou None, 'email': str}
-        """
-        from dao import UserDAO
-        user_dao = UserDAO()
-        user_id_compartilhado = user_dao.get_user_id_by_email(email_compartilhado)
-        
-        # Valida se não está compartilhando consigo mesmo
-        if user_id_compartilhado == self.user_id:
-            resultado = {
-                'success': False,
-                'message': 'Você não pode compartilhar uma assinatura com você mesmo!',
-                'user_id': None,
-                'email': email_compartilhado
-            }
-            return resultado
-        
-        resultado = {
-            'success': True,
-            'message': '',
-            'user_id': user_id_compartilhado,
-            'email': email_compartilhado
-        }
-        return resultado
-    
     def _criar_compartilhamento_assinatura(self, assinatura_id: int, user_id_compartilhado: int, email_compartilhado: str):
         """
         Cria o compartilhamento da assinatura no banco de dados.
@@ -840,7 +850,6 @@ class AssinaturasController:
     def processar_compartilhamento(self, assinatura_id: int, email_compartilhado: str):
         """
         Processa o compartilhamento de uma assinatura com outro usuário.
-        Valida se não está compartilhando consigo mesmo.
         
         Args:
             assinatura_id: ID da assinatura a compartilhar
@@ -849,22 +858,17 @@ class AssinaturasController:
         Returns:
             dict: {'success': bool, 'message': str}
         """
-        # 1. Normaliza email
+        from dao import UserDAO
+        user_dao = UserDAO()
+        
+        # Normaliza email e busca user_id
         email_normalizado = email_compartilhado.strip().lower()
+        user_id_compartilhado = user_dao.get_user_id_by_email(email_normalizado)
         
-        # 2. Valida dados do compartilhamento
-        validacao = self._validar_compartilhamento(email_normalizado)
-        if not validacao['success']:
-            resultado = {
-                'success': validacao['success'],
-                'message': validacao['message']
-            }
-            return resultado
-        
-        # 3. Cria o compartilhamento
+        # Cria o compartilhamento
         resultado = self._criar_compartilhamento_assinatura(
             assinatura_id, 
-            validacao['user_id'], 
-            validacao['email']
+            user_id_compartilhado, 
+            email_normalizado
         )
         return resultado
