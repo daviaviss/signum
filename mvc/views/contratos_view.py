@@ -2,14 +2,17 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from mvc import ui_constants as UI
-from mvc.views.assinaturas_view import AssinaturasView
 
 
-class ContratosView(AssinaturasView):
-    """View para tela de Contratos, espelhando AssinaturasView com funcionalidades avançadas."""
+class ContratosView:
+    """View para tela de Contratos (independente, sem herança de AssinaturasView)."""
 
     def __init__(self, parent, controller=None):
-        super().__init__(parent, controller)
+        self.parent = parent
+        self.controller = controller
+        self.contratos_data = []  # Store full data for sorting
+        self.sort_reverse = {}  # Track sort direction per column
+        self._create_ui()
 
     def _create_ui(self):
         # Título
@@ -113,7 +116,6 @@ class ContratosView(AssinaturasView):
         self.combo_periodicidade = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_periodicidade.pack(fill="x", padx=10, pady=(0, 10))
 
-        # Categoria (antigo Tag)
         categoria_frame = tk.Frame(parent, bg=UI.BOX_BG)
         categoria_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
@@ -288,7 +290,7 @@ class ContratosView(AssinaturasView):
                     f"R$ {contrato.valor:.2f}",
                     contrato.data_vencimento,
                     contrato.periodicidade,
-                    contrato.tag,  # Mantém como tag para compatibilidade com modelo
+                    contrato.categoria,  # Categoria do contrato
                     status_value
                 )
             )
@@ -338,7 +340,7 @@ class ContratosView(AssinaturasView):
                 data_vencimento=validated_data['data_vencimento'],
                 valor=validated_data['valor'],
                 periodicidade=validated_data['periodicidade'],
-                tag=validated_data['tag']  # Mantém como tag para compatibilidade
+                categoria=validated_data['categoria']  # Categoria do contrato
             )
             
             # Verifica resultado
@@ -467,7 +469,7 @@ class ContratosView(AssinaturasView):
             ("Valor:", f"R$ {contrato.valor:.2f}"),
             ("Data de Vencimento:", contrato.data_vencimento),
             ("Periodicidade:", contrato.periodicidade),
-            ("Categoria:", contrato.tag),  # Mantém como tag para compatibilidade
+            ("Categoria:", contrato.categoria),  # Categoria do contrato
         ]
 
         for label, value in details:
@@ -586,7 +588,7 @@ class ContratosView(AssinaturasView):
         tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         combo_categoria = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
         combo_categoria['values'] = self.combo_categoria['values']
-        combo_categoria.set(contrato.tag)  # Mantém como tag para compatibilidade
+        combo_categoria.set(contrato.categoria)  # Categoria do contrato
         combo_categoria.pack(fill="x", pady=(0, 10))
 
         # Status
@@ -607,7 +609,7 @@ class ContratosView(AssinaturasView):
                 'valor': entry_valor.get().strip().replace(',', '.'),
                 'data_vencimento': entry_data.get().strip(),
                 'periodicidade': combo_periodicidade.get(),
-                'tag': combo_categoria.get(),  # Mantém como tag para compatibilidade
+                'categoria': combo_categoria.get()  # Categoria do contrato
             }
             
             # Valida os dados (passa contrato_id para permitir mesmo nome na edição)
@@ -620,7 +622,7 @@ class ContratosView(AssinaturasView):
             validated_data = validation['data']
             
             # Importa o enum de status
-            from mvc.models.contrato_status_enum import StatusContrato
+            from mvc.models.status_enum import Status
             
             if self.controller:
                 resultado = self.controller.editar(
@@ -629,9 +631,9 @@ class ContratosView(AssinaturasView):
                     data_vencimento=validated_data['data_vencimento'],
                     valor=validated_data['valor'],
                     periodicidade=validated_data['periodicidade'],
-                    tag=validated_data['tag'],  # Mantém como tag para compatibilidade
+                    categoria=validated_data['categoria'],  # Categoria do contrato
                     favorito=contrato.favorito,
-                    status=StatusContrato(combo_status.get())
+                    status=Status(combo_status.get())
                 )
                 modal.destroy()
                 

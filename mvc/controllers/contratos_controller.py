@@ -2,7 +2,7 @@ from dao import ContratosDAO
 from mvc.models.contratos_model import Contrato
 from mvc.models.periodicidade_enum import Periodicidade
 from mvc.models.contrato_categoria_enum import CategoriaContrato
-from mvc.models.contrato_status_enum import StatusContrato
+from mvc.models.status_enum import Status
 from datetime import datetime
 from tkinter import messagebox
 
@@ -17,7 +17,7 @@ class ContratosController:
         self.dao = ContratosDAO()
         self.view.controller = self
         
-        # Popula os comboboxes (periodicidade e tags) via enums
+        # Popula os comboboxes (periodicidade e categorias) via enums
         self.view.set_combo_values(
             [p.value for p in Periodicidade],
             [c.value for c in CategoriaContrato],
@@ -91,10 +91,10 @@ class ContratosController:
                     data_vencimento=r["data_vencimento"],
                     valor=r["valor"],
                     periodicidade=r["periodicidade"],
-                    tag=r["tag"],
+                    categoria=r["categoria"],
                     usuario_compartilhado=r.get("usuario_compartilhado") or "",
                     favorito=1 if r.get("favorito") else 0,
-                    status=StatusContrato(r.get("status", "Ativo"))
+                    status=Status(r.get("status", "Ativo"))
                 )
                 for r in contratos_proprios
             ]
@@ -149,8 +149,7 @@ class ContratosController:
             'valor': self.view.entry_valor.get().strip().replace(',', '.'),
             'data_vencimento': self.view.entry_data.get().strip(),
             'periodicidade': self.view.combo_periodicidade.get(),
-            'tag': self.view.combo_categoria.get(),
-            'usuario_compartilhado': ''  # Removido compartilhamento
+            'categoria': self.view.combo_categoria.get()
         }
     
     def _validate_date(self, date_str):
@@ -237,7 +236,7 @@ class ContratosController:
             'valor': 'Valor',
             'data_vencimento': 'Data de Vencimento',
             'periodicidade': 'Periodicidade',
-            'tag': 'Categoria'
+            'categoria': 'Categoria'
         }
         
         missing = []
@@ -314,10 +313,10 @@ class ContratosController:
         data_vencimento: str,
         valor: float,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         usuario_compartilhado: str = "",
         favorito: int = 0,
-        status: StatusContrato = None,
+        status: Status = None,
         contrato_id: int = None
     ):
         """
@@ -334,10 +333,10 @@ class ContratosController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=tag,
+            categoria=categoria,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
-            status=status if status else StatusContrato.ATIVO
+            status=status if status else Status.ATIVO
         )
     
     def _finalizar_operacao(
@@ -364,7 +363,7 @@ class ContratosController:
         data_vencimento: str,
         valor: float,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         usuario_compartilhado: str = "",
     ):
         """Adiciona um novo contrato."""
@@ -373,10 +372,10 @@ class ContratosController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=tag,
+            categoria=categoria,
             usuario_compartilhado=usuario_compartilhado,
             favorito=0,
-            status=StatusContrato.ATIVO
+            status=Status.ATIVO
         )
         contrato_id = self.dao.add_contrato(contrato)
         
@@ -483,10 +482,10 @@ class ContratosController:
                     data_vencimento=nova_data.strftime("%d/%m/%Y"),
                     valor=contrato["valor"],
                     periodicidade=contrato["periodicidade"],
-                    tag=contrato["tag"],
+                    categoria=contrato["categoria"],
                     usuario_compartilhado=contrato.get("usuario_compartilhado") or "",
                     favorito=1 if contrato.get("favorito") else 0,
-                    status=StatusContrato(contrato.get("status", "Ativo"))
+                    status=Status(contrato.get("status", "Ativo"))
                 )
                 return True
             
@@ -573,10 +572,10 @@ class ContratosController:
         data_vencimento: str,
         valor: float,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         usuario_compartilhado: str = "",
         favorito: int = 0,
-        status: StatusContrato = None
+        status: Status = None
     ):
         """Edita um contrato existente."""
         if not self.user_id:
@@ -588,7 +587,7 @@ class ContratosController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=tag,
+            categoria=categoria,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             status=status
@@ -601,8 +600,8 @@ class ContratosController:
             'Contrato atualizado com sucesso!'
         )
     
-    def get_tags_disponiveis(self):
-        """Retorna lista de tags disponíveis."""
+    def get_categorias_disponiveis(self):
+        """Retorna lista de categorias disponíveis."""
         return [c.value for c in CategoriaContrato]
     
     def get_periodicidades(self):

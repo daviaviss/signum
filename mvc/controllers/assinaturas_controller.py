@@ -2,7 +2,7 @@ from dao import AssinaturasDAO
 from mvc.models.assinaturas_model import Assinatura
 from mvc.models.periodicidade_enum import Periodicidade
 from mvc.models.assinatura_categoria_enum import CategoriaAssinatura
-from mvc.models.assinatura_status_enum import StatusAssinatura
+from mvc.models.status_enum import Status
 from datetime import datetime
 from tkinter import messagebox
 
@@ -155,7 +155,7 @@ class AssinaturasController:
         
         # Calcula total das assinaturas próprias
         for assinatura in assinaturas_proprias:
-            if assinatura.status == StatusAssinatura.ATIVO:
+            if assinatura.status == Status.ATIVO:
                 # Se compartilhou com alguém, paga metade
                 if assinatura.usuario_compartilhado and assinatura.usuario_compartilhado.strip():
                     total += assinatura.valor / 2
@@ -164,7 +164,7 @@ class AssinaturasController:
         
         # Calcula total das assinaturas compartilhadas comigo
         for assinatura in assinaturas_compartilhadas:
-            if assinatura.status == StatusAssinatura.ATIVO:
+            if assinatura.status == Status.ATIVO:
                 # Sempre paga metade (outra metade é do proprietário)
                 total += assinatura.valor / 2
         
@@ -466,7 +466,7 @@ class AssinaturasController:
         login: str = "",
         senha: str = "",
         favorito: int = 0,
-        status: StatusAssinatura = None,
+        status: Status = None,
         assinatura_id: int = None
     ):
         """
@@ -483,13 +483,13 @@ class AssinaturasController:
             data_vencimento=data_vencimento,
             valor=valor,
             periodicidade=periodicidade,
-            tag=categoria,
+            categoria=categoria,
             forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             login=login,
             senha=senha,
             favorito=favorito,
-            status=status if status else StatusAssinatura.ATIVO
+            status=status if status else Status.ATIVO
         )
     
     def _finalizar_operacao(
@@ -544,7 +544,7 @@ class AssinaturasController:
             login=login,
             senha=senha,
             favorito=0,
-            status=StatusAssinatura.ATIVO
+            status=Status.ATIVO
         )
         assinatura_id = self.dao.adicionar_assinatura(assinatura)
         
@@ -580,7 +580,7 @@ class AssinaturasController:
             }
         
         # Verifica se o status é ENCERRADO
-        if assinatura.status == StatusAssinatura.ENCERRADO:
+        if assinatura.status == Status.ENCERRADO:
             return {'can_remove': True, 'message': ''}
         
         # Não pode remover se ainda está ATIVO
@@ -685,7 +685,7 @@ class AssinaturasController:
         assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         assinatura = next((a for a in assinaturas if a.id == assinatura_id), None)
         
-        if not assinatura or assinatura.status != StatusAssinatura.ATIVO:
+        if not assinatura or assinatura.status != Status.ATIVO:
             return False
         
         try:
@@ -711,7 +711,7 @@ class AssinaturasController:
                     data_vencimento=nova_data.strftime("%d/%m/%Y"),
                     valor=assinatura.valor,
                     periodicidade=assinatura.periodicidade,
-                    categoria=assinatura.tag,
+                    categoria=assinatura.categoria,
                     forma_pagamento=assinatura.forma_pagamento,
                     usuario_compartilhado=assinatura.usuario_compartilhado,
                     login=assinatura.login,
@@ -738,7 +738,7 @@ class AssinaturasController:
         assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
         for assinatura in assinaturas:
-            if assinatura.status == StatusAssinatura.ATIVO:
+            if assinatura.status == Status.ATIVO:
                 self.renovar_vencimento_se_necessario(assinatura.id)
     
     def editar(
@@ -754,7 +754,7 @@ class AssinaturasController:
         login: str = "",
         senha: str = "",
         favorito: int = 0,
-        status: StatusAssinatura = None
+        status: Status = None
     ):
         """Edita uma assinatura existente."""
         assinatura = self._criar_objeto_assinatura(

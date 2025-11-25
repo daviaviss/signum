@@ -267,7 +267,7 @@ class AssinaturasDAO:
             data_vencimento TEXT NOT NULL,
             valor REAL NOT NULL,
             periodicidade TEXT NOT NULL,
-            tag TEXT NOT NULL,
+            categoria TEXT NOT NULL,
             forma_pagamento TEXT NOT NULL,
             usuario_compartilhado TEXT,
             login TEXT,
@@ -285,6 +285,7 @@ class AssinaturasDAO:
         self._ensure_favorito_column(conn)
         self._ensure_status_column(conn)
         self._ensure_created_at_column(conn)
+        self._ensure_categoria_column(conn)
     
     def _ensure_favorito_column(self, conn):
         """Adiciona coluna favorito se não existir."""
@@ -323,6 +324,49 @@ class AssinaturasDAO:
             )
             conn.commit()
     
+    def _ensure_categoria_column(self, conn):
+        """Renomeia coluna tag para categoria se necessário."""
+        cur = conn.execute("PRAGMA table_info(assinaturas)")
+        cols = {row[1] for row in cur.fetchall()}
+        
+        if "tag" in cols and "categoria" not in cols:
+            # SQLite não suporta RENAME COLUMN antes da versão 3.25.0
+            # Vamos criar uma nova tabela e migrar os dados
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS assinaturas_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    nome TEXT NOT NULL,
+                    data_vencimento TEXT NOT NULL,
+                    valor REAL NOT NULL,
+                    periodicidade TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    forma_pagamento TEXT NOT NULL,
+                    usuario_compartilhado TEXT,
+                    login TEXT,
+                    senha TEXT,
+                    favorito INTEGER DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'Ativo',
+                    created_at TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            """)
+            
+            # Copiar dados da tabela antiga para a nova
+            conn.execute("""
+                INSERT INTO assinaturas_new 
+                (id, user_id, nome, data_vencimento, valor, periodicidade, categoria, 
+                 forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at)
+                SELECT id, user_id, nome, data_vencimento, valor, periodicidade, tag,
+                       forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at
+                FROM assinaturas
+            """)
+            
+            # Remover tabela antiga e renomear a nova
+            conn.execute("DROP TABLE assinaturas")
+            conn.execute("ALTER TABLE assinaturas_new RENAME TO assinaturas")
+            conn.commit()
+    
     def _create_compartilhamentos_table(self, conn):
         """Cria tabela para gerenciar compartilhamentos de assinaturas."""
         query = """
@@ -345,7 +389,7 @@ class AssinaturasDAO:
         """Adiciona uma nova assinatura ao banco."""
         query = """
             INSERT INTO assinaturas 
-            (user_id, nome, data_vencimento, valor, periodicidade, tag, 
+            (user_id, nome, data_vencimento, valor, periodicidade, categoria, 
              forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -358,7 +402,7 @@ class AssinaturasDAO:
                     assinatura.data_vencimento,
                     assinatura.valor,
                     assinatura.periodicidade,
-                    assinatura.tag,
+                    assinatura.categoria,
                     assinatura.forma_pagamento,
                     assinatura.usuario_compartilhado,
                     assinatura.login,
@@ -378,7 +422,7 @@ class AssinaturasDAO:
             cursor = conn.execute(
                 """
                 SELECT id, user_id, nome, data_vencimento, valor, periodicidade, 
-                       tag, forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at
+                       categoria, forma_pagamento, usuario_compartilhado, login, senha, favorito, status, created_at
                 FROM assinaturas 
                 WHERE user_id = ?
                 ORDER BY favorito DESC, data_vencimento
@@ -393,7 +437,7 @@ class AssinaturasDAO:
                     data_vencimento=row[3],
                     valor=row[4],
                     periodicidade=row[5],
-                    tag=row[6],
+                    categoria=row[6],
                     forma_pagamento=row[7],
                     usuario_compartilhado=row[8],
                     login=row[9],
@@ -439,7 +483,7 @@ class AssinaturasDAO:
         query = """
             UPDATE assinaturas
             SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?,
-                tag = ?, forma_pagamento = ?, usuario_compartilhado = ?,
+                categoria = ?, forma_pagamento = ?, usuario_compartilhado = ?,
                 login = ?, senha = ?, favorito = ?, status = ?
             WHERE id = ?
         """
@@ -451,7 +495,7 @@ class AssinaturasDAO:
                     assinatura.data_vencimento,
                     assinatura.valor,
                     assinatura.periodicidade,
-                    assinatura.tag,
+                    assinatura.categoria,
                     assinatura.forma_pagamento,
                     assinatura.usuario_compartilhado,
                     assinatura.login,
@@ -515,7 +559,7 @@ class AssinaturasDAO:
             cursor = conn.execute(
                 """
                 SELECT a.id, a.user_id, a.nome, a.data_vencimento, a.valor, a.periodicidade, 
-                       a.tag, a.forma_pagamento, a.usuario_compartilhado, a.login, a.senha, 
+                       a.categoria, a.forma_pagamento, a.usuario_compartilhado, a.login, a.senha, 
                        a.favorito, a.status, a.created_at
                 FROM assinaturas a
                 INNER JOIN assinaturas_compartilhadas ac ON a.id = ac.assinatura_id
@@ -532,7 +576,7 @@ class AssinaturasDAO:
                     data_vencimento=row[3],
                     valor=row[4],
                     periodicidade=row[5],
-                    tag=row[6],
+                    categoria=row[6],
                     forma_pagamento=row[7],
                     usuario_compartilhado=row[8],
                     login=row[9],
@@ -566,7 +610,7 @@ class ContratosDAO:
             data_vencimento TEXT NOT NULL,
             valor REAL NOT NULL,
             periodicidade TEXT NOT NULL,
-            tag TEXT NOT NULL,
+            categoria TEXT NOT NULL,
             usuario_compartilhado TEXT,
             favorito INTEGER DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'Ativo',
@@ -598,14 +642,20 @@ class ContratosDAO:
             self.conn.commit()
     
     def _migrate_schema(self):
-        """Migra schema antigo removendo colunas forma_pagamento/login/senha se existirem."""
+        """Migra schema antigo removendo colunas forma_pagamento/login/senha se existirem, e renomeia tag para categoria."""
         try:
             cur = self.conn.execute("PRAGMA table_info(contratos)")
             cols = [row[1] for row in cur.fetchall()]
             if not cols:
                 return
-            # Se tabela possui quaisquer colunas antigas, recria com schema novo
-            if any(c in cols for c in ("forma_pagamento", "login", "senha")):
+            
+            # Verifica se precisa migrar tag para categoria ou remover colunas antigas
+            needs_migration = any(c in cols for c in ("forma_pagamento", "login", "senha", "tag"))
+            
+            if needs_migration:
+                # Determina qual coluna usar (tag ou categoria)
+                categoria_col = "tag" if "tag" in cols else "categoria"
+                
                 self.conn.execute(
                     """
                     CREATE TABLE contratos_new (
@@ -615,7 +665,7 @@ class ContratosDAO:
                         data_vencimento TEXT NOT NULL,
                         valor REAL NOT NULL,
                         periodicidade TEXT NOT NULL,
-                        tag TEXT NOT NULL,
+                        categoria TEXT NOT NULL,
                         usuario_compartilhado TEXT,
                         favorito INTEGER DEFAULT 0,
                         status TEXT NOT NULL DEFAULT 'Ativo',
@@ -624,12 +674,12 @@ class ContratosDAO:
                     """
                 )
                 self.conn.execute(
-                    """
+                    f"""
                     INSERT INTO contratos_new (
-                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
+                        id, user_id, nome, data_vencimento, valor, periodicidade, categoria, usuario_compartilhado, favorito, status
                     )
                     SELECT 
-                        id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, COALESCE(favorito, 0), 'Ativo'
+                        id, user_id, nome, data_vencimento, valor, periodicidade, {categoria_col}, usuario_compartilhado, COALESCE(favorito, 0), 'Ativo'
                     FROM contratos
                     """
                 )
@@ -645,7 +695,7 @@ class ContratosDAO:
         cursor = self.conn.execute(
             """
             INSERT INTO contratos (
-                user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
+                user_id, nome, data_vencimento, valor, periodicidade, categoria, usuario_compartilhado, favorito, status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -654,7 +704,7 @@ class ContratosDAO:
                 contrato.data_vencimento,
                 contrato.valor,
                 contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
-                contrato.tag if isinstance(contrato.tag, str) else contrato.tag.value,
+                contrato.categoria if isinstance(contrato.categoria, str) else contrato.categoria.value,
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
                 contrato.status.value if hasattr(contrato, 'status') else 'Ativo',
@@ -667,7 +717,7 @@ class ContratosDAO:
         """Retorna todos os contratos de um usuário, favoritos primeiro."""
         cursor = self.conn.execute(
             """
-            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, tag, usuario_compartilhado, favorito, status
+            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, categoria, usuario_compartilhado, favorito, status
             FROM contratos
             WHERE user_id = ?
             ORDER BY favorito DESC, id DESC
@@ -683,7 +733,7 @@ class ContratosDAO:
                 "data_vencimento": r[3],
                 "valor": r[4],
                 "periodicidade": r[5],
-                "tag": r[6],
+                "categoria": r[6],
                 "usuario_compartilhado": r[7],
                 "favorito": bool(r[8]),
                 "status": r[9],
@@ -719,7 +769,7 @@ class ContratosDAO:
         self.conn.execute(
             """
             UPDATE contratos
-            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, tag = ?, usuario_compartilhado = ?, favorito = ?, status = ?
+            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, categoria = ?, usuario_compartilhado = ?, favorito = ?, status = ?
             WHERE id = ? AND user_id = ?
             """,
             (
@@ -727,7 +777,7 @@ class ContratosDAO:
                 contrato.data_vencimento,
                 contrato.valor,
                 contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
-                contrato.tag if isinstance(contrato.tag, str) else contrato.tag.value,
+                contrato.categoria if isinstance(contrato.categoria, str) else contrato.categoria.value,
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
                 contrato.status.value if hasattr(contrato, 'status') else 'Ativo',

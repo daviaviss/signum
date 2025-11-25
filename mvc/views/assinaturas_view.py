@@ -317,7 +317,7 @@ class AssinaturasView:
                 "Nome": "nome",
                 "Vencimento": "data_vencimento",
                 "Periodicidade": "periodicidade",
-                "Categoria": "tag"
+                "Categoria": "categoria"
             }
             attr = attr_map.get(col, "nome")
             self.assinaturas_data.sort(
@@ -361,7 +361,7 @@ class AssinaturasView:
                     f"R$ {assinatura.valor:.2f}",
                     assinatura.data_vencimento,
                     assinatura.periodicidade,
-                    assinatura.tag
+                    assinatura.categoria
                 )
             )
         
@@ -499,7 +499,7 @@ class AssinaturasView:
             ("Valor:", f"R$ {assinatura.valor:.2f}"),
             ("Data de Vencimento:", assinatura.data_vencimento),
             ("Periodicidade:", assinatura.periodicidade),
-            ("Categoria:", assinatura.tag),
+            ("Categoria:", assinatura.categoria),
             ("Forma de Pagamento:", assinatura.forma_pagamento),
             ("Compartilhado com:", assinatura.usuario_compartilhado or "Ninguém"),
             ("Login:", assinatura.login or "N/A"),
@@ -661,7 +661,7 @@ class AssinaturasView:
         tk.Label(categoria_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
         combo_categoria = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
         combo_categoria['values'] = self.combo_categoria['values']
-        combo_categoria.set(assinatura.tag)
+        combo_categoria.set(assinatura.categoria)
         combo_categoria.pack(fill="x", pady=(0, 10))
         
         pag_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
@@ -723,7 +723,7 @@ class AssinaturasView:
             validated_data = validacao['data']
             
             # Importa o enum de status
-            from mvc.models.assinatura_status_enum import StatusAssinatura
+            from mvc.models.status_enum import Status
             
             if self.controller:
                 resultado = self.controller.editar(
@@ -738,7 +738,7 @@ class AssinaturasView:
                     login=validated_data['login'],
                     senha=validated_data['senha'],
                     favorito=assinatura.favorito,
-                    status=StatusAssinatura(combo_status.get())
+                    status=Status(combo_status.get())
                 )
                 modal.destroy()
                 

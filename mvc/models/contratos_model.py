@@ -1,4 +1,4 @@
-from mvc.models.contrato_status_enum import StatusContrato
+from mvc.models.status_enum import Status
 
 class Contrato:
     """Classe concreta para Contrato (sem pagamento/login/senha)."""
@@ -8,12 +8,12 @@ class Contrato:
         valor: float,
         data_vencimento: str,
         periodicidade: str,
-        tag: str,
+        categoria: str,
         usuario_compartilhado: str = "",
         favorito: int = 0,
         contrato_id: int = None,
         user_id: int = None,
-        status: StatusContrato = StatusContrato.ATIVO,
+        status: Status = Status.ATIVO,
 
     ):
         self.id = contrato_id
@@ -22,7 +22,7 @@ class Contrato:
         self.valor = valor
         self.data_vencimento = data_vencimento
         self.periodicidade = periodicidade
-        self.tag = tag
+        self.categoria = categoria
         self.usuario_compartilhado = usuario_compartilhado
         self.favorito = favorito
         self.status = status
