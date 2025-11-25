@@ -136,9 +136,14 @@ class UserDAO:
 class PagamentosDAO:
     """DAO para gerenciar pagamentos no banco de dados."""
     
-    def __init__(self, db_file="database.sqlite"):
+    def __init__(self, db_file="database.sqlite", user_id=None):
         self.conn = sqlite3.connect(db_file)
+        self.user_id = user_id
         self._drop_and_create_table()
+    
+    def set_user_id(self, user_id):
+        """Define o ID do usuário para filtrar operações."""
+        self.user_id = user_id
     
     def _drop_and_create_table(self):
         """Recria a tabela para aplicar as alterações no schema."""
@@ -148,31 +153,41 @@ class PagamentosDAO:
             WHERE type='table' AND name='pagamentos'
         """)
         if cursor.fetchone():
-            # Se existe, faz backup dos dados
-            cursor = self.conn.execute("SELECT * FROM pagamentos")
-            dados_antigos = cursor.fetchall()
+            # Verifica se já tem a coluna user_id
+            cursor = self.conn.execute("PRAGMA table_info(pagamentos)")
+            columns = [row[1] for row in cursor.fetchall()]
             
-            # Drop na tabela antiga
-            self.conn.execute("DROP TABLE pagamentos")
-            self.conn.commit()
+            if 'user_id' not in columns:
+                # Se não tem user_id, dropa a tabela (dados incompatíveis)
+                self.conn.execute("DROP TABLE pagamentos")
+                self.conn.commit()
+                dados_antigos = []
+            else:
+                # Se já tem user_id, mantém os dados
+                cursor = self.conn.execute("SELECT * FROM pagamentos")
+                dados_antigos = cursor.fetchall()
+                self.conn.execute("DROP TABLE pagamentos")
+                self.conn.commit()
         else:
             dados_antigos = []
 
-        # Cria a nova tabela
+        # Cria a nova tabela com user_id
         query = """
         CREATE TABLE pagamentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
             nome TEXT NOT NULL,
             vencimento TEXT,
-            forma_pagamento TEXT NOT NULL
+            forma_pagamento TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
         )
         """
         self.conn.execute(query)
         
-        # Restaura os dados antigos
-        if dados_antigos:
+        # Restaura os dados antigos se tiverem user_id
+        if dados_antigos and len(dados_antigos[0]) >= 5:
             self.conn.executemany(
-                "INSERT INTO pagamentos (id, nome, vencimento, forma_pagamento) VALUES (?, ?, ?, ?)",
+                "INSERT INTO pagamentos (id, user_id, nome, vencimento, forma_pagamento) VALUES (?, ?, ?, ?, ?)",
                 dados_antigos
             )
         
@@ -180,23 +195,30 @@ class PagamentosDAO:
     
     def add_pagamento(self, pagamento):
         """Adiciona um novo pagamento ao banco."""
+        if self.user_id is None:
+            raise ValueError("user_id não definido no PagamentosDAO")
+        
         query = """
-            INSERT INTO pagamentos (nome, vencimento, forma_pagamento)
-            VALUES (?, ?, ?)
+            INSERT INTO pagamentos (user_id, nome, vencimento, forma_pagamento)
+            VALUES (?, ?, ?, ?)
         """
         cursor = self.conn.execute(
             query,
             (
+                self.user_id,
                 pagamento.nome,
-                pagamento.vencimento.isoformat() if pagamento.vencimento else None,  # None se não tiver data
-                pagamento.forma_de_pagamento.value  # Pega o valor do enum
+                pagamento.vencimento.isoformat() if pagamento.vencimento else None,
+                pagamento.forma_de_pagamento.value
             )
         )
         self.conn.commit()
         return cursor.lastrowid
     
     def get_all_pagamentos(self):
-        """Retorna todos os pagamentos ordenados por data de vencimento."""
+        """Retorna todos os pagamentos do usuário ordenados por data de vencimento."""
+        if self.user_id is None:
+            raise ValueError("user_id não definido no PagamentosDAO")
+        
         from mvc.models.pagamentos_model import PagamentoModel
         from mvc.models.forma_pagamento_enum import FormaPagamento
         from datetime import datetime
@@ -205,8 +227,10 @@ class PagamentosDAO:
             """
             SELECT id, nome, vencimento, forma_pagamento
             FROM pagamentos
+            WHERE user_id = ?
             ORDER BY vencimento
-            """
+            """,
+            (self.user_id,)
         )
         
         pagamentos = []
@@ -225,10 +249,13 @@ class PagamentosDAO:
     
     def update_pagamento(self, pagamento_id, pagamento):
         """Atualiza um pagamento existente."""
+        if self.user_id is None:
+            raise ValueError("user_id não definido no PagamentosDAO")
+        
         query = """
             UPDATE pagamentos
             SET nome = ?, vencimento = ?, forma_pagamento = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
         """
         self.conn.execute(
             query,
@@ -236,16 +263,20 @@ class PagamentosDAO:
                 pagamento.nome,
                 pagamento.vencimento.isoformat() if pagamento.vencimento else None,
                 pagamento.forma_de_pagamento.value,
-                pagamento_id
+                pagamento_id,
+                self.user_id
             )
         )
         self.conn.commit()
     
     def delete_pagamento(self, pagamento_id):
         """Remove um pagamento do banco."""
+        if self.user_id is None:
+            raise ValueError("user_id não definido no PagamentosDAO")
+        
         self.conn.execute(
-            "DELETE FROM pagamentos WHERE id = ?",
-            (pagamento_id,)
+            "DELETE FROM pagamentos WHERE id = ? AND user_id = ?",
+            (pagamento_id, self.user_id)
         )
         self.conn.commit()
 

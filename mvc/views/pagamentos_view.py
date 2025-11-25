@@ -10,9 +10,10 @@ from mvc.controllers.pagamentos_controller import PagamentosController
 class PagamentosView:
     """View para gerenciamento de métodos de pagamento."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, usuario_controller=None):
         self.parent = parent
-        self.controller = PagamentosController()
+        user_id = usuario_controller.usuario.id if usuario_controller and usuario_controller.usuario else None
+        self.controller = PagamentosController(user_id=user_id)
         self._setup_ui()
         self._load_data()
 

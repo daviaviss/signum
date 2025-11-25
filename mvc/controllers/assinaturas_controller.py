@@ -18,7 +18,7 @@ class AssinaturasController:
         self.view.controller = self
         
         from mvc.controllers.pagamentos_controller import PagamentosController
-        self.pagamentos_controller = PagamentosController()
+        self.pagamentos_controller = PagamentosController(user_id=user_id)
         
         self.view.set_combo_values(
             [p.value for p in Periodicidade],

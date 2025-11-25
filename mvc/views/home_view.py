@@ -69,7 +69,7 @@ class HomeView:
             self._render_navbar(self.frame, active="")
             content = tk.Frame(self.frame, bg=UI.BG_COLOR)
             content.pack(fill="both", expand=True)
-            PagamentosView(content)
+            PagamentosView(content, self.usuario_controller)
 
         botoes_config = [
             ("Fazer backup", None),
