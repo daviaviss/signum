@@ -600,6 +600,7 @@ class ContratosDAO:
         self._create_table()
         self._migrate_schema()
         self._ensure_status_column()
+        self._ensure_forma_pagamento_column()
         
     def _create_table(self):
         query = """
@@ -619,6 +620,23 @@ class ContratosDAO:
         """
         self.conn.execute(query)
         self.conn.commit()
+        
+        # Cria tabela de compartilhamento de contratos
+        query_compartilhados = """
+        CREATE TABLE IF NOT EXISTS contratos_compartilhados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contrato_id INTEGER NOT NULL,
+            user_id_proprietario INTEGER NOT NULL,
+            user_id_compartilhado INTEGER NOT NULL,
+            FOREIGN KEY (contrato_id) REFERENCES contratos (id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id_proprietario) REFERENCES users (id),
+            FOREIGN KEY (user_id_compartilhado) REFERENCES users (id),
+            UNIQUE(contrato_id, user_id_compartilhado)
+        )
+        """
+        self.conn.execute(query_compartilhados)
+        self.conn.commit()
+        
         self._ensure_favorito_column()
     
     def _ensure_favorito_column(self):
@@ -638,6 +656,16 @@ class ContratosDAO:
         if "status" not in cols:
             self.conn.execute(
                 "ALTER TABLE contratos ADD COLUMN status TEXT NOT NULL DEFAULT 'Ativo'"
+            )
+            self.conn.commit()
+    
+    def _ensure_forma_pagamento_column(self):
+        """Adiciona coluna forma_pagamento se não existir."""
+        cur = self.conn.execute("PRAGMA table_info(contratos)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "forma_pagamento" not in cols:
+            self.conn.execute(
+                "ALTER TABLE contratos ADD COLUMN forma_pagamento TEXT"
             )
             self.conn.commit()
     
@@ -695,8 +723,8 @@ class ContratosDAO:
         cursor = self.conn.execute(
             """
             INSERT INTO contratos (
-                user_id, nome, data_vencimento, valor, periodicidade, categoria, usuario_compartilhado, favorito, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                user_id, nome, data_vencimento, valor, periodicidade, categoria, forma_pagamento, usuario_compartilhado, favorito, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 contrato.user_id,
@@ -705,6 +733,7 @@ class ContratosDAO:
                 contrato.valor,
                 contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
                 contrato.categoria if isinstance(contrato.categoria, str) else contrato.categoria.value,
+                getattr(contrato, "forma_pagamento", ""),
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
                 contrato.status.value if hasattr(contrato, 'status') else 'Ativo',
@@ -717,7 +746,7 @@ class ContratosDAO:
         """Retorna todos os contratos de um usuário, favoritos primeiro."""
         cursor = self.conn.execute(
             """
-            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, categoria, usuario_compartilhado, favorito, status
+            SELECT id, user_id, nome, data_vencimento, valor, periodicidade, categoria, forma_pagamento, usuario_compartilhado, favorito, status
             FROM contratos
             WHERE user_id = ?
             ORDER BY favorito DESC, id DESC
@@ -734,9 +763,10 @@ class ContratosDAO:
                 "valor": r[4],
                 "periodicidade": r[5],
                 "categoria": r[6],
-                "usuario_compartilhado": r[7],
-                "favorito": bool(r[8]),
-                "status": r[9],
+                "forma_pagamento": r[7] or "",
+                "usuario_compartilhado": r[8] or "",
+                "favorito": bool(r[9]),
+                "status": r[10],
             }
             for r in rows
         ]
@@ -769,7 +799,7 @@ class ContratosDAO:
         self.conn.execute(
             """
             UPDATE contratos
-            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, categoria = ?, usuario_compartilhado = ?, favorito = ?, status = ?
+            SET nome = ?, data_vencimento = ?, valor = ?, periodicidade = ?, categoria = ?, forma_pagamento = ?, usuario_compartilhado = ?, favorito = ?, status = ?
             WHERE id = ? AND user_id = ?
             """,
             (
@@ -778,6 +808,7 @@ class ContratosDAO:
                 contrato.valor,
                 contrato.periodicidade if isinstance(contrato.periodicidade, str) else contrato.periodicidade.value,
                 contrato.categoria if isinstance(contrato.categoria, str) else contrato.categoria.value,
+                getattr(contrato, "forma_pagamento", ""),
                 contrato.usuario_compartilhado,
                 1 if getattr(contrato, "favorito", False) else 0,
                 contrato.status.value if hasattr(contrato, 'status') else 'Ativo',
@@ -786,3 +817,64 @@ class ContratosDAO:
             ),
         )
         self.conn.commit()
+    
+    def compartilhar_contrato(self, contrato_id: int, user_id_proprietario: int, user_id_compartilhado: int):
+        """Compartilha um contrato com outro usuário."""
+        # Verifica se já existe compartilhamento
+        cursor = self.conn.execute(
+            """
+            SELECT id FROM contratos_compartilhados
+            WHERE contrato_id = ? AND user_id_compartilhado = ?
+            """,
+            (contrato_id, user_id_compartilhado),
+        )
+        if cursor.fetchone():
+            return False
+        
+        # Cria o compartilhamento
+        self.conn.execute(
+            """
+            INSERT INTO contratos_compartilhados (contrato_id, user_id_proprietario, user_id_compartilhado)
+            VALUES (?, ?, ?)
+            """,
+            (contrato_id, user_id_proprietario, user_id_compartilhado),
+        )
+        self.conn.commit()
+        return True
+    
+    def obter_contratos_compartilhados_comigo(self, user_id: int) -> List:
+        """Retorna contratos compartilhados comigo (readonly)."""
+        cursor = self.conn.execute(
+            """
+            SELECT c.id, c.user_id, c.nome, c.data_vencimento, c.valor, c.periodicidade, 
+                   c.categoria, c.forma_pagamento, c.usuario_compartilhado, c.favorito, c.status
+            FROM contratos c
+            INNER JOIN contratos_compartilhados cc ON c.id = cc.contrato_id
+            WHERE cc.user_id_compartilhado = ?
+            ORDER BY c.data_vencimento
+            """,
+            (user_id,),
+        )
+        rows = cursor.fetchall()
+        
+        contratos = []
+        for r in rows:
+            from mvc.models.contratos_model import Contrato
+            from mvc.models.status_enum import Status
+            contrato = Contrato(
+                contrato_id=r[0],
+                user_id=r[1],
+                nome=r[2],
+                data_vencimento=r[3],
+                valor=r[4],
+                periodicidade=r[5],
+                categoria=r[6],
+                forma_pagamento=r[7] or "",
+                usuario_compartilhado=r[8] or "",
+                favorito=r[9],
+                status=Status(r[10]) if r[10] else Status.ATIVO
+            )
+            contrato.is_readonly = True
+            contratos.append(contrato)
+        
+        return contratos

@@ -123,6 +123,21 @@ class ContratosView:
         self.combo_categoria = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_categoria.pack(fill="x", padx=10, pady=(0, 10))
 
+        # Forma de Pagamento (obrigatório)
+        pagamento_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        pagamento_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(pagamento_frame, text="Forma de Pagamento: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(pagamento_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        self.combo_forma_pagamento = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
+        self.combo_forma_pagamento.pack(fill="x", padx=10, pady=(0, 10))
+
+        # Usuário Compartilhado (opcional)
+        compartilhado_frame = tk.Frame(parent, bg=UI.BOX_BG)
+        compartilhado_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
+        tk.Label(compartilhado_frame, text="Compartilhar com (email): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        self.entry_usuario_compartilhado = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        self.entry_usuario_compartilhado.pack(fill="x", padx=10, pady=(0, 10))
+
         # Botão Adicionar
         self.btn_adicionar = tk.Button(
             parent,
@@ -137,16 +152,19 @@ class ContratosView:
         )
         self.btn_adicionar.pack(fill="x", padx=10, pady=20)
 
-    def set_combo_values(self, periodicidades, categorias):
-        """Define os valores dos comboboxes (sem formas de pagamento)."""
+    def set_combo_values(self, periodicidades, categorias, formas_pagamento):
+        """Define os valores dos comboboxes (com formas de pagamento)."""
         self.combo_periodicidade['values'] = periodicidades
         self.combo_categoria['values'] = categorias
+        self.combo_forma_pagamento['values'] = formas_pagamento
 
         # Selecionar primeiro item por padrão
         if periodicidades:
             self.combo_periodicidade.current(0)
         if categorias:
             self.combo_categoria.current(0)
+        if formas_pagamento:
+            self.combo_forma_pagamento.current(0)
 
     def _create_treeview(self, parent):
         """Cria o treeview para exibir os contratos."""
@@ -340,7 +358,9 @@ class ContratosView:
                 data_vencimento=validated_data['data_vencimento'],
                 valor=validated_data['valor'],
                 periodicidade=validated_data['periodicidade'],
-                categoria=validated_data['categoria']  # Categoria do contrato
+                categoria=validated_data['categoria'],  # Categoria do contrato
+                forma_pagamento=validated_data.get('forma_pagamento', ''),
+                usuario_compartilhado=validated_data['usuario_compartilhado']
             )
             
             # Verifica resultado
@@ -591,6 +611,24 @@ class ContratosView:
         combo_categoria.set(contrato.categoria)  # Categoria do contrato
         combo_categoria.pack(fill="x", pady=(0, 10))
 
+        # Forma de Pagamento (obrigatório)
+        pagamento_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        pagamento_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(pagamento_frame, text="Forma de Pagamento: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        tk.Label(pagamento_frame, text="*", font=UI.FONT_LABEL, bg=UI.BOX_BG, fg="#d32f2f").pack(side="left")
+        combo_forma_pagamento = ttk.Combobox(content_frame, font=UI.FONT_ENTRY, state="readonly")
+        combo_forma_pagamento['values'] = self.combo_forma_pagamento['values']
+        combo_forma_pagamento.set(contrato.forma_pagamento or "")
+        combo_forma_pagamento.pack(fill="x", pady=(0, 10))
+
+        # Usuário Compartilhado (opcional)
+        compartilhado_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
+        compartilhado_frame.pack(anchor="w", pady=(5, 0), fill="x")
+        tk.Label(compartilhado_frame, text="Compartilhar com (email): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
+        entry_usuario_compartilhado = tk.Entry(content_frame, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
+        entry_usuario_compartilhado.insert(0, contrato.usuario_compartilhado or "")
+        entry_usuario_compartilhado.pack(fill="x", pady=(0, 10))
+
         # Status
         status_frame = tk.Frame(content_frame, bg=UI.BOX_BG)
         status_frame.pack(anchor="w", pady=(5, 0), fill="x")
@@ -609,7 +647,9 @@ class ContratosView:
                 'valor': entry_valor.get().strip().replace(',', '.'),
                 'data_vencimento': entry_data.get().strip(),
                 'periodicidade': combo_periodicidade.get(),
-                'categoria': combo_categoria.get()  # Categoria do contrato
+                'categoria': combo_categoria.get(),  # Categoria do contrato
+                'forma_pagamento': combo_forma_pagamento.get(),
+                'usuario_compartilhado': entry_usuario_compartilhado.get().strip()
             }
             
             # Valida os dados (passa contrato_id para permitir mesmo nome na edição)
@@ -632,6 +672,8 @@ class ContratosView:
                     valor=validated_data['valor'],
                     periodicidade=validated_data['periodicidade'],
                     categoria=validated_data['categoria'],  # Categoria do contrato
+                    forma_pagamento=validated_data.get('forma_pagamento', ''),
+                    usuario_compartilhado=validated_data['usuario_compartilhado'],
                     favorito=contrato.favorito,
                     status=Status(combo_status.get())
                 )

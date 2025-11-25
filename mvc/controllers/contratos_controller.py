@@ -17,10 +17,14 @@ class ContratosController:
         self.dao = ContratosDAO()
         self.view.controller = self
         
-        # Popula os comboboxes (periodicidade e categorias) via enums
+        from mvc.controllers.pagamentos_controller import PagamentosController
+        self.pagamentos_controller = PagamentosController()
+        
+        # Popula os comboboxes (periodicidade, categorias e formas de pagamento) via enums
         self.view.set_combo_values(
             [p.value for p in Periodicidade],
             [c.value for c in CategoriaContrato],
+            self.pagamentos_controller.obter_nomes_metodos_pagamento()
         )
         
         self._carregar_contratos()
@@ -68,18 +72,20 @@ class ContratosController:
             self.mostrar_erro("Valor Inválido", message)
         elif error_code == 'DUPLICATE_NAME':
             self.mostrar_erro("Nome Duplicado", message)
+        elif error_code == 'SELF_SHARE':
+            self.mostrar_erro("Compartilhamento Inválido", message)
         else:
             self.mostrar_erro("Erro de Validação", message)
     
     # ==================== MÉTODOS DE NEGÓCIO ====================
     
     def _carregar_contratos(self):
-        """Carrega e exibe os contratos do usuário."""
+        """Carrega e exibe os contratos do usuário (próprios + compartilhados)."""
         if self.user_id:
-            # Primeiro renova todos os contratos ativos vencidos
+            # Primeiro renova todos os contratos ativos vencidos (apenas os próprios)
             self.renovar_todos_contratos_ativos()
             
-            # Busca apenas contratos próprios (removido compartilhamento)
+            # Busca contratos próprios
             contratos_proprios = self.dao.get_contratos_by_user(self.user_id)
             
             # Converte para objetos Contrato
@@ -92,6 +98,7 @@ class ContratosController:
                     valor=r["valor"],
                     periodicidade=r["periodicidade"],
                     categoria=r["categoria"],
+                    forma_pagamento=r.get("forma_pagamento", ""),
                     usuario_compartilhado=r.get("usuario_compartilhado") or "",
                     favorito=1 if r.get("favorito") else 0,
                     status=Status(r.get("status", "Ativo"))
@@ -99,11 +106,25 @@ class ContratosController:
                 for r in contratos_proprios
             ]
             
-            self.view.atualizar_lista(contratos_obj)
+            # Busca contratos compartilhados comigo (readonly)
+            contratos_compartilhados = self.dao.obter_contratos_compartilhados_comigo(self.user_id)
+            
+            # Combina as duas listas
+            todos_contratos = contratos_obj + contratos_compartilhados
+            
+            # Ordena: favoritos primeiro, depois por data de vencimento
+            todos_contratos.sort(key=lambda c: (c.favorito != 1, c.data_vencimento))
+            
+            self.view.atualizar_lista(todos_contratos)
     
     def calcular_total_contratos(self, contratos=None):
         """
         Calcula o valor total de contratos ativos do usuário.
+        
+        Regras:
+        - Contrato próprio sem compartilhamento: valor integral
+        - Contrato próprio compartilhado: metade do valor
+        - Contrato compartilhado comigo: metade do valor
         
         Args:
             contratos: Lista de contratos (opcional). Se None, busca do usuário atual.
@@ -114,15 +135,28 @@ class ContratosController:
         if not self.user_id:
             return 0.0
         
-        # Busca contratos próprios (removido compartilhamento)
+        # Busca contratos próprios
         contratos_proprios = self.dao.get_contratos_by_user(self.user_id)
+        
+        # Busca contratos compartilhados comigo
+        contratos_compartilhados = self.dao.obter_contratos_compartilhados_comigo(self.user_id)
         
         total = 0.0
         
         # Calcula total dos contratos próprios
         for contrato in contratos_proprios:
             if contrato["status"] == "Ativo":
-                total += contrato["valor"]
+                # Se compartilhou com alguém, paga metade
+                if contrato.get("usuario_compartilhado") and contrato["usuario_compartilhado"].strip():
+                    total += contrato["valor"] / 2
+                else:
+                    total += contrato["valor"]
+        
+        # Calcula total dos contratos compartilhados comigo
+        for contrato in contratos_compartilhados:
+            if contrato.status == Status.ATIVO:
+                # Sempre paga metade (outra metade é do proprietário)
+                total += contrato.valor / 2
         
         return total
     
@@ -149,7 +183,9 @@ class ContratosController:
             'valor': self.view.entry_valor.get().strip().replace(',', '.'),
             'data_vencimento': self.view.entry_data.get().strip(),
             'periodicidade': self.view.combo_periodicidade.get(),
-            'categoria': self.view.combo_categoria.get()
+            'categoria': self.view.combo_categoria.get(),
+            'forma_pagamento': self.view.combo_forma_pagamento.get(),
+            'usuario_compartilhado': self.view.entry_usuario_compartilhado.get().strip()
         }
     
     def _validate_date(self, date_str):
@@ -215,6 +251,38 @@ class ContratosController:
         
         return {'duplicate': False, 'message': ''}
     
+    def _validar_compartilhamento_nao_proprio(self, data):
+        """
+        Valida se o usuário não está tentando compartilhar consigo mesmo.
+        
+        Args:
+            data: Dict com os dados do formulário
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'error_code': str, 'data': None}
+        """
+        usuario_compartilhado = data.get('usuario_compartilhado', '').strip().lower()
+        
+        # Se não há email de compartilhamento, validação passa
+        if not usuario_compartilhado:
+            return {'success': True, 'error_code': 'OK', 'data': data}
+        
+        # Busca o user_id do email de compartilhamento
+        from dao import UserDAO
+        user_dao = UserDAO()
+        user_id_compartilhado = user_dao.get_user_id_by_email(usuario_compartilhado)
+        
+        # Verifica se está tentando compartilhar consigo mesmo
+        if user_id_compartilhado == self.user_id:
+            return {
+                'success': False,
+                'message': 'Você não pode compartilhar um contrato com você mesmo!',
+                'error_code': 'SELF_SHARE',
+                'data': None
+            }
+        
+        return {'success': True, 'error_code': 'OK', 'data': data}
+    
     def validate_form_data(self, data, contrato_id=None):
         """
         Valida os dados do formulário na ordem especificada:
@@ -236,7 +304,8 @@ class ContratosController:
             'valor': 'Valor',
             'data_vencimento': 'Data de Vencimento',
             'periodicidade': 'Periodicidade',
-            'categoria': 'Categoria'
+            'categoria': 'Categoria',
+            'forma_pagamento': 'Forma de Pagamento'
         }
         
         missing = []
@@ -293,6 +362,11 @@ class ContratosController:
                 'data': None
             }
         
+        # 5. VALIDAR SE NÃO ESTÁ COMPARTILHANDO CONSIGO MESMO
+        validacao = self._validar_compartilhamento_nao_proprio(data)
+        if not validacao['success']:
+            return validacao
+        
         return {
             'success': True,
             'message': 'Dados validados com sucesso!',
@@ -305,7 +379,7 @@ class ContratosController:
         self.view.entry_nome.delete(0, 'end')
         self.view.entry_valor.delete(0, 'end')
         self.view.entry_data.delete(0, 'end')
-        # Removido compartilhamento - não precisa limpar campo inexistente
+        self.view.entry_usuario_compartilhado.delete(0, 'end')
     
     def _criar_objeto_contrato(
         self,
@@ -314,6 +388,7 @@ class ContratosController:
         valor: float,
         periodicidade: str,
         categoria: str,
+        forma_pagamento: str = "",
         usuario_compartilhado: str = "",
         favorito: int = 0,
         status: Status = None,
@@ -334,6 +409,7 @@ class ContratosController:
             valor=valor,
             periodicidade=periodicidade,
             categoria=categoria,
+            forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             status=status if status else Status.ATIVO
@@ -347,13 +423,21 @@ class ContratosController:
     ):
         """
         Finaliza operações de adicionar/editar:
-        1. Recarrega contratos
-        2. Retorna resultado
+        1. Processa compartilhamento se necessário
+        2. Recarrega contratos
+        3. Retorna resultado
         
         Returns:
             dict: {'success': bool, 'message': str}
         """
-        # Removido compartilhamento - apenas recarrega contratos
+        # Processa compartilhamento se foi informado email
+        if usuario_compartilhado and usuario_compartilhado.strip():
+            resultado = self.processar_compartilhamento(contrato_id, usuario_compartilhado)
+            if not resultado['success']:
+                # Se falhar compartilhamento, retorna erro mas operação já foi feita
+                self._carregar_contratos()
+                return {'success': False, 'message': resultado['message']}
+        
         self._carregar_contratos()
         return {'success': True, 'message': mensagem_sucesso}
     
@@ -364,6 +448,7 @@ class ContratosController:
         valor: float,
         periodicidade: str,
         categoria: str,
+        forma_pagamento: str = "",
         usuario_compartilhado: str = "",
     ):
         """Adiciona um novo contrato."""
@@ -373,6 +458,7 @@ class ContratosController:
             valor=valor,
             periodicidade=periodicidade,
             categoria=categoria,
+            forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             favorito=0,
             status=Status.ATIVO
@@ -573,6 +659,7 @@ class ContratosController:
         valor: float,
         periodicidade: str,
         categoria: str,
+        forma_pagamento: str = "",
         usuario_compartilhado: str = "",
         favorito: int = 0,
         status: Status = None
@@ -588,6 +675,7 @@ class ContratosController:
             valor=valor,
             periodicidade=periodicidade,
             categoria=categoria,
+            forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             status=status
@@ -608,6 +696,19 @@ class ContratosController:
         """Retorna lista de periodicidades disponíveis."""
         return [p.value for p in Periodicidade]
     
+    def _criar_compartilhamento_contrato(self, contrato_id: int, user_id_compartilhado: int, email_compartilhado: str):
+        """
+        Cria o compartilhamento do contrato no banco de dados.
+        
+        Returns:
+            dict: {'success': bool, 'message': str}
+        """
+        self.dao.compartilhar_contrato(contrato_id, self.user_id, user_id_compartilhado)
+        return {
+            'success': True,
+            'message': f'Contrato compartilhado com sucesso com {email_compartilhado}!'
+        }
+    
     def processar_compartilhamento(self, contrato_id: int, email_compartilhado: str):
         """
         Processa o compartilhamento de um contrato com outro usuário.
@@ -619,43 +720,17 @@ class ContratosController:
         Returns:
             dict: {'success': bool, 'message': str}
         """
-        if not email_compartilhado or not email_compartilhado.strip():
-            # Campo vazio = sem compartilhamento
-            return {'success': True, 'message': ''}
-        
-        email_compartilhado = email_compartilhado.strip().lower()
-        
-        # Busca o ID do usuário pelo email
         from dao import UserDAO
         user_dao = UserDAO()
-        user_id_compartilhado = user_dao.get_user_id_by_email(email_compartilhado)
         
-        if not user_id_compartilhado:
-            return {
-                'success': False,
-                'message': f'Usuário com email "{email_compartilhado}" não encontrado no sistema!'
-            }
-        
-        if user_id_compartilhado == self.user_id:
-            return {
-                'success': False,
-                'message': 'Você não pode compartilhar um contrato com você mesmo!'
-            }
+        # Normaliza email e busca user_id
+        email_normalizado = email_compartilhado.strip().lower()
+        user_id_compartilhado = user_dao.get_user_id_by_email(email_normalizado)
         
         # Cria o compartilhamento
-        sucesso = self.dao.compartilhar_contrato(
-            contrato_id=contrato_id,
-            user_id_proprietario=self.user_id,
-            user_id_compartilhado=user_id_compartilhado
+        resultado = self._criar_compartilhamento_contrato(
+            contrato_id, 
+            user_id_compartilhado, 
+            email_normalizado
         )
-        
-        if not sucesso:
-            return {
-                'success': False,
-                'message': 'Este contrato já está compartilhado com este usuário!'
-            }
-        
-        return {
-            'success': True,
-            'message': f'Contrato compartilhado com sucesso com {email_compartilhado}!'
-        }
+        return resultado

@@ -31,12 +31,12 @@ class Assinatura(Contrato):
             data_vencimento=data_vencimento,
             periodicidade=periodicidade,
             categoria=categoria_value,
+            forma_pagamento=forma_pagamento,
             usuario_compartilhado=usuario_compartilhado,
             favorito=favorito,
             contrato_id=assinatura_id,
             user_id=user_id
         )
-        self.forma_pagamento = forma_pagamento
         self.login = login
         self.senha = senha
         self.created_at = created_at if created_at else datetime.now().isoformat()
