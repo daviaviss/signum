@@ -7,8 +7,8 @@ from typing import List, Optional
 class PagamentosController:
     """Controlador para gerenciar operações relacionadas a pagamentos."""
 
-    def __init__(self):
-        self.dao = PagamentosDAO()
+    def __init__(self, user_id=None):
+        self.dao = PagamentosDAO(user_id=user_id)
 
     def criar_pagamento(self, nome: str, vencimento: Optional[date], forma_pagamento: FormaPagamento) -> int:
         """
