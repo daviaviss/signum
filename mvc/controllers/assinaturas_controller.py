@@ -28,7 +28,7 @@ class AssinaturasController:
         
         self._carregar_assinaturas()
     
-    # ==================== MÉTODOS DE MENSAGENS ====================
+    # Métodos de mensagens
     
     @staticmethod
     def mostrar_sucesso(titulo: str, mensagem: str):
@@ -110,24 +110,24 @@ class AssinaturasController:
         metodo_exibicao = mapeamento_erros.get(error_code, self._exibir_erro_generico)
         metodo_exibicao(mensagem)
     
-    # ==================== MÉTODOS DE NEGÓCIO ====================
+    # Métodos de negócio
     
     def _carregar_assinaturas(self):
         """Carrega e exibe as assinaturas do usuário (próprias + compartilhadas)."""
         if self.user_id:
-            # Primeiro renova todas as assinaturas ativas vencidas (apenas as próprias)
+            # Renova assinaturas ativas vencidas
             self.renovar_todas_assinaturas_ativas()
             
             # Busca assinaturas próprias
             assinaturas_proprias = self.dao.obter_assinaturas_por_usuario(self.user_id)
             
-            # Busca assinaturas compartilhadas comigo (readonly)
+            # Busca assinaturas compartilhadas comigo
             assinaturas_compartilhadas = self.dao.obter_assinaturas_compartilhadas_comigo(self.user_id)
             
-            # Combina as duas listas
+            # Combina listas
             todas_assinaturas = assinaturas_proprias + assinaturas_compartilhadas
             
-            # Ordena: favoritos primeiro, depois por data de vencimento
+            # Ordena favoritos primeiro
             todas_assinaturas.sort(key=lambda a: (a.favorito != 1, a.data_vencimento))
             
             self.view.atualizar_lista(todas_assinaturas)
@@ -153,24 +153,24 @@ class AssinaturasController:
         # Busca assinaturas próprias
         assinaturas_proprias = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
-        # Busca assinaturas compartilhadas comigo
+        # Busca compartilhadas comigo
         assinaturas_compartilhadas = self.dao.obter_assinaturas_compartilhadas_comigo(self.user_id)
         
         total = 0.0
         
-        # Calcula total das assinaturas próprias
+        # Calcula total próprias
         for assinatura in assinaturas_proprias:
             if assinatura.status == Status.ATIVO:
-                # Se compartilhou com alguém, paga metade
+                # Se compartilhou, paga metade
                 if assinatura.usuario_compartilhado and assinatura.usuario_compartilhado.strip():
                     total += assinatura.valor / 2
                 else:
                     total += assinatura.valor
         
-        # Calcula total das assinaturas compartilhadas comigo
+        # Calcula total compartilhadas
         for assinatura in assinaturas_compartilhadas:
             if assinatura.status == Status.ATIVO:
-                # Sempre paga metade (outra metade é do proprietário)
+                # Sempre paga metade
                 total += assinatura.valor / 2
         
         return total
@@ -182,7 +182,7 @@ class AssinaturasController:
         Returns:
             float: Meta - Total de assinaturas ativas (positivo = dentro da meta, negativo = acima da meta)
         """
-        # Obter a meta de assinaturas do usuário
+        # Obtém meta do usuário
         if not self.usuario_controller:
             return 0.0
         
@@ -213,17 +213,17 @@ class AssinaturasController:
             dict: {'valid': bool, 'message': str, 'date': datetime.date or None}
         """
         try:
-            # Tenta converter DD/MM/AAAA para datetime
+            # Tenta converter para datetime
             date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
         except ValueError:
-            # Se falhar na conversão, formato inválido
+            # Falha na conversão
             return {
                 'valid': False,
                 'message': 'Data inválida! Use o formato DD/MM/AAAA.',
                 'date': None
             }
         
-        # Se chegou aqui, formato é válido, agora verifica se é futura
+        # Verifica se é futura
         today = datetime.now().date()
         
         if date_obj < today:
@@ -256,7 +256,7 @@ class AssinaturasController:
         assinaturas = self.dao.obter_assinaturas_por_usuario(self.user_id)
         
         for assinatura in assinaturas:
-            # Ignora a própria assinatura ao editar
+            # Ignora própria assinatura ao editar
             if assinatura_id and assinatura.id == assinatura_id:
                 continue
             
@@ -412,16 +412,16 @@ class AssinaturasController:
         """
         usuario_compartilhado = data.get('usuario_compartilhado', '').strip().lower()
         
-        # Se não há email de compartilhamento, validação passa
+        # Sem email de compartilhamento
         if not usuario_compartilhado:
             return {'success': True, 'error_code': 'OK', 'data': data}
         
-        # Busca o user_id do email de compartilhamento
+        # Busca user_id do email
         from dao import UserDAO
         user_dao = UserDAO()
         user_id_compartilhado = user_dao.get_user_id_by_email(usuario_compartilhado)
         
-        # Verifica se está tentando compartilhar consigo mesmo
+        # Verifica compartilhamento consigo mesmo
         if user_id_compartilhado == self.user_id:
             return {
                 'success': False,

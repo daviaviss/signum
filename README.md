@@ -19,7 +19,7 @@ python -m venv venv
 venv\Scripts\activate
 
 # No Linux/MacOS
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 ```
 
@@ -29,13 +29,6 @@ Você pode instalar todas as dependências usando o arquivo requirements.txt:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Ou instalar individualmente:
-
-```bash
-pip install bcrypt==4.2.0
-pip install tkcalendar==1.6.1
 ```
 
 ### 3. Execute o programa

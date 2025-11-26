@@ -9,12 +9,12 @@ class AssinaturasView:
     def __init__(self, parent, controller=None):
         self.parent = parent
         self.controller = controller
-        self.assinaturas_data = []  # Store full data for sorting
-        self.sort_reverse = {}  # Track sort direction per column
+        self.assinaturas_data = []
+        self.sort_reverse = {}
         self._create_ui()
     
     def _create_ui(self):
-        # Título
+        # Título da tela
         title = tk.Label(
             self.parent, 
             text="Assinaturas",
@@ -24,22 +24,22 @@ class AssinaturasView:
         )
         title.pack(pady=20)
         
-        # Container principal com duas colunas
+        # Container principal
         main_container = tk.Frame(self.parent, bg=UI.BG_COLOR)
         main_container.pack(fill="both", expand=True, padx=20, pady=10)
         
-        # Coluna esquerda - Formulário com scrollbar
+        # Coluna esquerda
         left_outer = tk.Frame(main_container, bg=UI.BG_COLOR, width=380)
         left_outer.pack(side="left", fill="y", padx=(0, 10), pady=0)
         left_outer.pack_propagate(False)
         
-        # Canvas e scrollbar para o formulário
+        # Canvas e scrollbar
         canvas_form = tk.Canvas(left_outer, bg=UI.BOX_BG, highlightthickness=0, width=360)
         scrollbar_form = ttk.Scrollbar(left_outer, orient="vertical", command=canvas_form.yview)
         
         left_frame = tk.Frame(canvas_form, bg=UI.BOX_BG, relief="groove", bd=2, width=360)
         
-        # Update scroll region when frame changes
+        # Atualiza região de scroll
         def _on_frame_configure(event):
             canvas_form.configure(scrollregion=canvas_form.bbox("all"))
         
@@ -51,11 +51,11 @@ class AssinaturasView:
         scrollbar_form.pack(side="right", fill="y")
         canvas_form.pack(side="left", fill="both", expand=True)
         
-        # Bind mouse wheel to canvas
+        # Bind mouse wheel
         def _on_mousewheel(event):
             canvas_form.yview_scroll(int(-1*(event.delta/120)), "units")
         
-        # Bind when mouse enters the canvas area
+        # Bind mousewheel ao entrar
         def _bind_mousewheel(event):
             canvas_form.bind_all("<MouseWheel>", _on_mousewheel)
         
@@ -65,7 +65,7 @@ class AssinaturasView:
         canvas_form.bind("<Enter>", _bind_mousewheel)
         canvas_form.bind("<Leave>", _unbind_mousewheel)
         
-        # Coluna direita - Treeview
+        # Coluna direita
         right_frame = tk.Frame(main_container, bg=UI.BG_COLOR)
         right_frame.pack(side="left", fill="both", expand=True, pady=0)
         
@@ -83,7 +83,7 @@ class AssinaturasView:
         )
         form_title.pack(pady=15, padx=10, fill="x")
         
-        # Nome
+        # Campo nome
         nome_frame = tk.Frame(parent, bg=UI.BOX_BG)
         nome_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(nome_frame, text="Nome: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
@@ -91,7 +91,7 @@ class AssinaturasView:
         self.entry_nome = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_nome.pack(fill="x", padx=10, pady=(0, 10))
         
-        # Valor
+        # Campo valor
         valor_frame = tk.Frame(parent, bg=UI.BOX_BG)
         valor_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(valor_frame, text="Valor (R$): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
@@ -99,7 +99,7 @@ class AssinaturasView:
         self.entry_valor = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_valor.pack(fill="x", padx=10, pady=(0, 10))
         
-        # Data de Vencimento
+        # Campo data de vencimento
         data_frame = tk.Frame(parent, bg=UI.BOX_BG)
         data_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(data_frame, text="Vencimento (DD/MM/AAAA): ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
@@ -107,7 +107,7 @@ class AssinaturasView:
         self.entry_data = tk.Entry(parent, font=UI.FONT_ENTRY, bg=UI.ENTRY_BG, fg=UI.ENTRY_FG)
         self.entry_data.pack(fill="x", padx=10, pady=(0, 10))
         
-        # Periodicidade
+        # Campo periodicidade
         period_frame = tk.Frame(parent, bg=UI.BOX_BG)
         period_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(period_frame, text="Periodicidade: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")
@@ -115,7 +115,7 @@ class AssinaturasView:
         self.combo_periodicidade = ttk.Combobox(parent, font=UI.FONT_ENTRY, state="readonly")
         self.combo_periodicidade.pack(fill="x", padx=10, pady=(0, 10))
         
-        # Categoria
+        # Campo categoria
         categoria_frame = tk.Frame(parent, bg=UI.BOX_BG)
         categoria_frame.pack(anchor="w", padx=10, pady=(5, 0), fill="x")
         tk.Label(categoria_frame, text="Categoria: ", font=UI.FONT_LABEL, bg=UI.BOX_BG).pack(side="left")

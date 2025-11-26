@@ -23,7 +23,7 @@ class Assinatura(Contrato):
         status = None,
         created_at: str = None
     ):
-        # Se categoria vier como enum, usa seu value
+        # Se categoria vier como enum, usa seu value (necessário para compatibilidade)
         categoria_value = getattr(categoria, "value", categoria)
         super().__init__(
             nome=nome,
@@ -40,9 +40,9 @@ class Assinatura(Contrato):
         self.login = login
         self.senha = senha
         self.created_at = created_at if created_at else datetime.now().isoformat()
-        self.is_readonly = False  # Por padrão, não é readonly (será setado pelo DAO)
+        self.is_readonly = False
         
-        # Handle status
+        # status: define o estado da assinatura
         if status is None:
             self.status = Status.ATIVO
         elif isinstance(status, Status):
@@ -60,4 +60,4 @@ class Assinatura(Contrato):
         return f"<Assinatura id={self.id} nome={self.nome} valor={self.valor}>"
 
 
-# Removido: classe AssinaturasModel. Controllers agora usam DAO e enums diretamente.
+

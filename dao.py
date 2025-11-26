@@ -8,7 +8,7 @@ class UserDAO:
     def __init__(self, db_file="database.sqlite"):
         self.conn = sqlite3.connect(db_file)
         self._create_table()
-        self._ensure_limit_columns()  # garante colunas mesmo se DB já existir
+        self._ensure_limit_columns()
 
     # ---------------- SCHEMA ----------------
     def _create_table(self):
@@ -73,7 +73,7 @@ class UserDAO:
         row = cursor.fetchone()
         if row:
             user_id, nome, email_db, senha_hash, lim_ass, lim_con = row
-            # cria o Usuario sem re-hash de senha (vamos injetar o hash persistido)
+            # Cria o Usuario sem re-hash de senha
             user = Usuario(
                 nome=nome,
                 email=email_db,
@@ -147,23 +147,23 @@ class PagamentosDAO:
     
     def _drop_and_create_table(self):
         """Recria a tabela para aplicar as alterações no schema."""
-        # Primeiro, verifica se a tabela existe
+        # Verifica se a tabela existe
         cursor = self.conn.execute("""
             SELECT name FROM sqlite_master 
             WHERE type='table' AND name='pagamentos'
         """)
         if cursor.fetchone():
-            # Verifica se já tem a coluna user_id
+            # Verifica coluna user_id
             cursor = self.conn.execute("PRAGMA table_info(pagamentos)")
             columns = [row[1] for row in cursor.fetchall()]
             
             if 'user_id' not in columns:
-                # Se não tem user_id, dropa a tabela (dados incompatíveis)
+                # Se não tem user_id, dropa a tabela
                 self.conn.execute("DROP TABLE pagamentos")
                 self.conn.commit()
                 dados_antigos = []
             else:
-                # Se já tem user_id, mantém os dados
+                # Se já tem user_id, mantém dados
                 cursor = self.conn.execute("SELECT * FROM pagamentos")
                 dados_antigos = cursor.fetchall()
                 self.conn.execute("DROP TABLE pagamentos")
@@ -171,7 +171,7 @@ class PagamentosDAO:
         else:
             dados_antigos = []
 
-        # Cria a nova tabela com user_id
+        # Cria nova tabela com user_id
         query = """
         CREATE TABLE pagamentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +184,7 @@ class PagamentosDAO:
         """
         self.conn.execute(query)
         
-        # Restaura os dados antigos se tiverem user_id
+        # Restaura dados antigos se tiverem user_id
         if dados_antigos and len(dados_antigos[0]) >= 5:
             self.conn.executemany(
                 "INSERT INTO pagamentos (id, user_id, nome, vencimento, forma_pagamento) VALUES (?, ?, ?, ?, ?)",
@@ -235,14 +235,14 @@ class PagamentosDAO:
         
         pagamentos = []
         for row in cursor.fetchall():
-            # Converte a data apenas se não for None
+            # Converte data se não for None
             vencimento = datetime.fromisoformat(row[2]).date() if row[2] else None
             pagamento = PagamentoModel(
                 nome=row[1],
                 vencimento=vencimento,
                 forma_de_pagamento=FormaPagamento(row[3])
             )
-            setattr(pagamento, 'id', row[0])  # Adiciona o ID ao objeto
+            setattr(pagamento, 'id', row[0])
             pagamentos.append(pagamento)
         
         return pagamentos
@@ -312,7 +312,7 @@ class AssinaturasDAO:
         conn.execute(query)
         conn.commit()
         
-        # Ensure favorito column exists in existing databases
+        # Garante coluna favorito
         self._ensure_favorito_column(conn)
         self._ensure_status_column(conn)
         self._ensure_created_at_column(conn)
@@ -344,7 +344,7 @@ class AssinaturasDAO:
         cols = {row[1] for row in cur.fetchall()}
         if "created_at" not in cols:
             # SQLite não permite DEFAULT CURRENT_TIMESTAMP em ALTER TABLE
-            # Usa uma data fixa como fallback para registros antigos
+            # Usa data fixa como fallback
             conn.execute(
                 "ALTER TABLE assinaturas ADD COLUMN created_at TEXT"
             )
