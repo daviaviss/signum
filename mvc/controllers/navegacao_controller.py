@@ -1,4 +1,3 @@
-import tkinter as tk
 from tkinter import messagebox
 from mvc import ui_constants as UI
 from mvc.views.register_view import RegisterView

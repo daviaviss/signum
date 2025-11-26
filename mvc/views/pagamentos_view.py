@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime, date
+from datetime import date
 from typing import Tuple, Optional
 from tkcalendar import DateEntry
 from mvc import ui_constants as UI
