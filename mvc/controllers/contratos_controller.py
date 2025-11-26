@@ -18,7 +18,7 @@ class ContratosController:
         self.view.controller = self
         
         from mvc.controllers.pagamentos_controller import PagamentosController
-        self.pagamentos_controller = PagamentosController()
+        self.pagamentos_controller = PagamentosController(user_id=user_id)
         
         # Popula os comboboxes (periodicidade, categorias e formas de pagamento) via enums
         self.view.set_combo_values(
